@@ -1,0 +1,2 @@
+# pytest.ini's pythonpath option requires >= 7; the major bound keeps CI reproducible.
+pytest>=8,<9

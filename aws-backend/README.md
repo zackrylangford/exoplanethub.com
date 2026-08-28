@@ -8,6 +8,17 @@ sam build
 sam deploy --config-env dev  # or main
 ```
 
+## Tests
+
+```bash
+cd aws-backend
+pip install -r requirements-dev.txt
+pytest
+```
+
+Tests import Lambda modules flat (`import esi`) — `pytest.ini` puts `lambda/sync` on the path.
+They must run without network access or AWS credentials.
+
 ## GitHub Actions Deployment
 
 Push a tag to trigger deployment:
