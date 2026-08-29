@@ -20,4 +20,21 @@ export interface Planet {
   st_logg: number;
   st_age: number;
   last_updated: string;
+  esi?: number;
 }
+
+// Drives both the /api/planets projection and PlanetSummary, so rendering a new field
+// without listing it here fails typecheck rather than yielding undefined at runtime.
+export const PLANET_SUMMARY_FIELDS = [
+  'pl_name',
+  'hostname',
+  'sy_dist',
+  'discoverymethod',
+  'disc_year',
+  'pl_rade',
+  'pl_bmasse',
+  'pl_eqt',
+  'esi',
+] as const;
+
+export type PlanetSummary = Pick<Planet, (typeof PLANET_SUMMARY_FIELDS)[number]>;

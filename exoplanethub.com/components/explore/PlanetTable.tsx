@@ -1,14 +1,14 @@
 'use client';
 import { useState, useMemo } from 'react';
-import { Planet } from '@/lib/mockPlanets';
+import { PlanetSummary } from '@/lib/mockPlanets';
 import styles from './PlanetTable.module.css';
 
 interface PlanetTableProps {
-  planets: Planet[];
+  planets: PlanetSummary[];
   page: number;
   itemsPerPage: number;
   onPageChange: (page: number) => void;
-  onPlanetClick: (planet: Planet) => void;
+  onPlanetClick: (planet: PlanetSummary) => void;
 }
 
 type SortKey = 'pl_name' | 'sy_dist' | 'pl_rade' | 'discoverymethod' | 'disc_year';
