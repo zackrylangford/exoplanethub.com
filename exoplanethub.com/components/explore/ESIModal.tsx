@@ -101,7 +101,7 @@ export default function ESIModal({ onClose }: ESIModalProps) {
 
           <div className={styles.section}>
             <h3 className={styles.sectionTitle}>Score Interpretation</h3>
-            <ul className={styles.bandList} aria-label="Score bands">
+            <ul className={styles.bandList} role="list" aria-label="Score bands">
               {ESI_BANDS.map((band) => (
                 <li key={band.label} className={styles.bandItem}>
                   <span className={styles.bandRange} style={band.style}>{band.range}</span>
