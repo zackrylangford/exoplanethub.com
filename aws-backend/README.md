@@ -16,8 +16,9 @@ pip install -r requirements-dev.txt
 pytest
 ```
 
-Tests import Lambda modules flat (`import esi`) — `pytest.ini` puts `lambda/sync` on the path.
-They must run without network access or AWS credentials.
+Tests import Lambda modules flat (`import app`) — `tests/conftest.py` puts `lambda/sync` on the
+path, so `pytest` works from either this directory or the repo root. Tests must run without
+network access or AWS credentials.
 
 ## GitHub Actions Deployment
 
@@ -35,5 +36,6 @@ git push origin main-aws-backend-1.0.0
 
 ## Required GitHub Secrets
 
-- `AWS_ACCESS_KEY_ID`
-- `AWS_SECRET_ACCESS_KEY`
+- `AWS_ROLE_ARN` — the IAM role the deploy workflow assumes via OIDC.
+  No long-lived access keys are needed; the workflow requests a short-lived token from GitHub's
+  OIDC provider and never stores credentials.

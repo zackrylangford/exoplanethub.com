@@ -8,5 +8,7 @@ SYNC_DIR = Path(__file__).resolve().parents[1] / "lambda" / "sync"
 def test_flat_imports_resolve_against_lambda_sync():
     spec = importlib.util.find_spec("app")
 
-    assert spec is not None, "pythonpath is not pinned to lambda/sync"
-    assert Path(spec.origin).resolve() == SYNC_DIR / "app.py"
+    assert spec is not None, f"no module named 'app' on sys.path; expected {SYNC_DIR / 'app.py'}"
+    assert (
+        Path(spec.origin).resolve() == SYNC_DIR / "app.py"
+    ), f"'app' resolved to {spec.origin}, shadowing the Lambda module"
