@@ -1,24 +1,26 @@
+// Every field the sync Lambda writes via `planet.get(...)` lands as DynamoDB NULL when NASA
+// omits it, so only the partition key and the sync's own timestamp are guaranteed present.
 export interface Planet {
   pl_name: string;
-  hostname: string;
-  sy_snum: number;
-  sy_pnum: number;
-  sy_dist: number;
-  discoverymethod: string;
-  disc_year: number;
-  disc_facility: string;
-  pl_orbper: number;
-  pl_orbsmax: number;
-  pl_rade: number;
-  pl_bmasse: number;
-  pl_dens: number;
-  pl_eqt: number;
-  pl_insol: number;
-  st_teff: number;
-  st_rad: number;
-  st_mass: number;
-  st_logg: number;
-  st_age: number;
+  hostname: string | null;
+  sy_snum: number | null;
+  sy_pnum: number | null;
+  sy_dist: number | null;
+  discoverymethod: string | null;
+  disc_year: number | null;
+  disc_facility: string | null;
+  pl_orbper: number | null;
+  pl_orbsmax: number | null;
+  pl_rade: number | null;
+  pl_bmasse: number | null;
+  pl_dens: number | null;
+  pl_eqt: number | null;
+  pl_insol: number | null;
+  st_teff: number | null;
+  st_rad: number | null;
+  st_mass: number | null;
+  st_logg: number | null;
+  st_age: number | null;
   last_updated: string;
   esi?: number;
 }
