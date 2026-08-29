@@ -24,7 +24,11 @@ def compute_esi(record):
 
 
 def _is_measured(value):
-    # bool is an int subclass, and the similarity kernel is undefined at x <= 0.
+    # bool is an int subclass; the kernel is undefined at x <= 0; huge ints overflow float().
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return False
-    return math.isfinite(value) and value > 0
+    try:
+        number = float(value)
+    except OverflowError:
+        return False
+    return math.isfinite(number) and number > 0

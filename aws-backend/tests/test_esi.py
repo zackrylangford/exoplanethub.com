@@ -4,13 +4,14 @@ from esi import compute_esi
 
 EARTH = {'pl_rade': 1.0, 'pl_eqt': 288.0, 'pl_bmasse': 1.0}
 SUPER_EARTH = {'pl_rade': 1.6, 'pl_eqt': 250.0, 'pl_bmasse': 3.5}
+HOT_JUPITER = {'pl_rade': 11.2, 'pl_eqt': 1400.0, 'pl_bmasse': 317.8}
 
 # Expected scores are hand-computed from the Decision 2 formula, not captured from this module.
 PINNED_VECTORS = [
     pytest.param(EARTH, 100, id='earth'),
     pytest.param({'pl_rade': 0.92, 'pl_eqt': 246.0, 'pl_bmasse': 0.69}, 90, id='trappist-1e'),
     pytest.param(SUPER_EARTH, 68, id='super-earth'),
-    pytest.param({'pl_rade': 11.2, 'pl_eqt': 1400.0, 'pl_bmasse': 317.8}, 7, id='hot-jupiter'),
+    pytest.param(HOT_JUPITER, 7, id='hot-jupiter'),
     pytest.param({'pl_rade': 1.6, 'pl_bmasse': 3.5}, 58, id='radius-and-mass'),
     pytest.param({'pl_rade': 1.6, 'pl_eqt': 250.0}, 85, id='radius-and-temperature'),
     pytest.param({'pl_eqt': 250.0, 'pl_bmasse': 3.5}, 64, id='temperature-and-mass'),
@@ -24,6 +25,7 @@ OUT_OF_DOMAIN_VALUES = [
     pytest.param(-288.0, id='negative-earth-temperature'),
     pytest.param(float('nan'), id='nan'),
     pytest.param(float('inf'), id='infinity'),
+    pytest.param(10**400, id='int-too-large-for-float'),
     pytest.param(True, id='bool-true'),
     pytest.param('1.0', id='numeric-string'),
     pytest.param('', id='empty-string'),
@@ -41,7 +43,7 @@ def test_earth_scores_one_hundred():
 
 
 def test_hot_jupiter_scores_far_below_earth():
-    assert compute_esi({'pl_rade': 11.2, 'pl_eqt': 1400.0, 'pl_bmasse': 317.8}) < 50
+    assert compute_esi(HOT_JUPITER) < 50
 
 
 @pytest.mark.parametrize('omitted', sorted(EARTH))
