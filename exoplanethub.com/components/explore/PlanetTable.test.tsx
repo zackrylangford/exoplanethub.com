@@ -85,6 +85,7 @@ function esiCell(rowIndex: number) {
 
 const SCORED = makePlanet({ pl_name: 'Scored', esi: 92 });
 const MIDDLING = makePlanet({ pl_name: 'Middling', esi: 55 });
+const ZERO = makePlanet({ pl_name: 'Zero', esi: 0 });
 const UNSCORED = makePlanet({ pl_name: 'Unscored' });
 
 describe('PlanetTable rendering', () => {
@@ -184,7 +185,6 @@ describe('PlanetTable sorting', () => {
   });
 });
 
-
 describe('PlanetTable ESI column', () => {
   it('shows the score and its band label, so the band is not carried by colour alone', () => {
     renderTable({ planets: [SCORED] });
@@ -200,15 +200,22 @@ describe('PlanetTable ESI column', () => {
     expect(esiCell(1)).toHaveTextContent('Not scored');
   });
 
-  it('sorts unscored planets last in both directions', async () => {
+  it('scores a planet at 0 rather than treating it as unmeasured', () => {
+    renderTable({ planets: [ZERO] });
+
+    expect(esiCell(1)).toHaveTextContent('0');
+    expect(esiCell(1)).not.toHaveTextContent('Not scored');
+  });
+
+  it('sorts unscored planets last in both directions, with a real 0 ranked among the scored', async () => {
     const user = userEvent.setup();
-    renderTable({ planets: [UNSCORED, MIDDLING, SCORED] });
+    renderTable({ planets: [UNSCORED, MIDDLING, ZERO, SCORED] });
 
     await user.click(esiSortButton());
-    expect(renderedNames()).toEqual(['Scored', 'Middling', 'Unscored']);
+    expect(renderedNames()).toEqual(['Scored', 'Middling', 'Zero', 'Unscored']);
 
     await user.click(esiSortButton());
-    expect(renderedNames()).toEqual(['Middling', 'Scored', 'Unscored']);
+    expect(renderedNames()).toEqual(['Zero', 'Middling', 'Scored', 'Unscored']);
   });
 
   it('reports its sort state through aria-sort as the direction toggles', async () => {
