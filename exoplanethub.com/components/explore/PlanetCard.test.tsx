@@ -29,7 +29,7 @@ describe('PlanetCard', () => {
     expect(screen.getByRole('button', { name: /ESI 84, Good similarity/ })).toBeInTheDocument();
   });
 
-  it('shows no badge and no placeholder for the two thirds of planets without one', () => {
+  it('renders the rest of the card unbadged for the two thirds of planets without a score', () => {
     renderCard(UNSCORED);
 
     expect(screen.queryByRole('button', { name: /ESI/ })).not.toBeInTheDocument();

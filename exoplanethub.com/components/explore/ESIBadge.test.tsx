@@ -8,7 +8,7 @@ const SCORE = 72;
 const BAND_LABEL = getESIBand(SCORE).label;
 const BADGE_NAME = new RegExp(`ESI ${SCORE}, ${BAND_LABEL}`);
 
-function renderInActivatableContainer(score: number | undefined) {
+function renderInActivatableContainer(score: number) {
   const activateContainer = vi.fn();
   const user = userEvent.setup();
 
@@ -34,9 +34,9 @@ describe('ESIBadge', () => {
   });
 
   it('renders nothing at all when the planet has no score', () => {
-    renderInActivatableContainer(undefined);
+    const { container } = render(<ESIBadge score={undefined} />);
 
-    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(container).toBeEmptyDOMElement();
   });
 
   it('opens the ESI explainer when activated', async () => {
