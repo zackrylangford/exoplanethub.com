@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import rangeStyles from '@/components/explore/RangeFilter.module.css';
 import type { PlanetSummary } from '@/lib/mockPlanets';
 import ExploreClient from './ExploreClient';
 
@@ -67,6 +68,11 @@ function sortHeader(name: RegExp) {
 
 function rangeGroup(name: RegExp) {
   return within(screen.getByRole('group', { name }));
+}
+
+// The rail is decorative, so it has no role to query by; its class is the only handle on it.
+function rangeRail(name: RegExp) {
+  return screen.getByRole('group', { name }).querySelector(`.${rangeStyles.track}`);
 }
 
 function boundInput(name: RegExp, edge: RegExp) {
@@ -450,13 +456,25 @@ describe('ExploreClient range filters', () => {
     expect(rangeGroup(/radius/i).getAllByRole('slider')[0].style.zIndex).toBe('');
   });
 
-  it('drops the track when the bounds cross, rather than drawing the range they swap into', () => {
+  it('drops the thumbs when the bounds cross, rather than drawing the range they swap into', () => {
     query = 'radius=3..1';
     renderExplore();
 
     expect(rangeGroup(/radius/i).queryAllByRole('slider')).toEqual([]);
     expect(boundInput(/radius/i, /min/i)).toHaveValue(3);
     expect(boundInput(/radius/i, /max/i)).toHaveValue(1);
+  });
+
+  // Typing a max crosses the bounds on the first keystroke for most entries, so an unmounted rail
+  // would jerk the card and everything under it on nearly every edit.
+  it('keeps the rail through a crossing, so the card holds its height while a bound is typed', () => {
+    query = 'radius=1..';
+    const { navigateTo } = renderExplore();
+    expect(rangeRail(/radius/i)).toBeInTheDocument();
+
+    navigateTo('radius=3..1');
+
+    expect(rangeRail(/radius/i)).toBeInTheDocument();
   });
 
   // Narrowed to 100 planets, so page 2 still exists and only an explicit reset can move off it.

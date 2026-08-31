@@ -45,10 +45,10 @@ export default function RangeFilter({
     max: scale ? String(toSignificantDigits(scale.max)) : '',
   };
 
-  // Crossed bounds match nothing, and a track drawn from them reads as the range they swap into.
+  // Crossed bounds match nothing, and thumbs drawn from them read as the range they swap into.
   const crossed = value.min !== null && value.max !== null && value.min > value.max;
 
-  const track =
+  const thumbs =
     scale && !crossed
       ? {
           steps: scale.steps,
@@ -60,7 +60,7 @@ export default function RangeFilter({
 
   // Both thumbs stack at the top of the track, and only the lower one has anywhere to go, so it
   // has to out-paint the upper to be draggable at all.
-  const raiseLowerThumb = track !== null && track.lower === track.steps;
+  const raiseLowerThumb = thumbs !== null && thumbs.lower === thumbs.steps;
 
   return (
     <fieldset className={styles.group}>
@@ -95,35 +95,43 @@ export default function RangeFilter({
         />
       </div>
 
-      {track && (
+      {scale && (
         <div className={styles.track}>
-          <input
-            type="range"
-            className={styles.thumb}
-            style={raiseLowerThumb ? { zIndex: 1 } : undefined}
-            aria-label={`${label} lower bound`}
-            aria-valuetext={`${value.min ?? extentText.min} ${unit}`}
-            aria-describedby={describedBy}
-            min={0}
-            max={track.steps}
-            value={track.lower}
-            onChange={(event) =>
-              onChange(withUncrossedBound(value, 'min', track.toValue(Number(event.target.value))))
-            }
-          />
-          <input
-            type="range"
-            className={styles.thumb}
-            aria-label={`${label} upper bound`}
-            aria-valuetext={`${value.max ?? extentText.max} ${unit}`}
-            aria-describedby={describedBy}
-            min={0}
-            max={track.steps}
-            value={track.upper}
-            onChange={(event) =>
-              onChange(withUncrossedBound(value, 'max', track.toValue(Number(event.target.value))))
-            }
-          />
+          {thumbs && (
+            <>
+              <input
+                type="range"
+                className={styles.thumb}
+                style={raiseLowerThumb ? { zIndex: 1 } : undefined}
+                aria-label={`${label} lower bound`}
+                aria-valuetext={`${value.min ?? extentText.min} ${unit}`}
+                aria-describedby={describedBy}
+                min={0}
+                max={thumbs.steps}
+                value={thumbs.lower}
+                onChange={(event) =>
+                  onChange(
+                    withUncrossedBound(value, 'min', thumbs.toValue(Number(event.target.value)))
+                  )
+                }
+              />
+              <input
+                type="range"
+                className={styles.thumb}
+                aria-label={`${label} upper bound`}
+                aria-valuetext={`${value.max ?? extentText.max} ${unit}`}
+                aria-describedby={describedBy}
+                min={0}
+                max={thumbs.steps}
+                value={thumbs.upper}
+                onChange={(event) =>
+                  onChange(
+                    withUncrossedBound(value, 'max', thumbs.toValue(Number(event.target.value)))
+                  )
+                }
+              />
+            </>
+          )}
         </div>
       )}
 
