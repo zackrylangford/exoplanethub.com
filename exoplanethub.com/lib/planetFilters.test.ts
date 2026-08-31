@@ -68,19 +68,20 @@ describe('parseFilters', () => {
   });
 
   it('reads a comma-separated method list', () => {
-    expect(parse('method=Transit,Radial%20Velocity')).toMatchObject({
-      methods: ['Transit', 'Radial Velocity'],
+    expect(parse('method=Radial%20Velocity,Transit')).toMatchObject({
+      methods: ['Radial Velocity', 'Transit'],
     });
   });
 
-  it('keeps the order the URL gave, so a shared link comes back byte for byte', () => {
-    expect(serializeFilters(parse('method=Transit,Astrometry'))).toBe('method=Transit%2CAstrometry');
+  it('normalises the order the URL gave, so one set of methods has exactly one URL', () => {
+    expect(parse('method=Transit,Astrometry')).toEqual(parse('method=Astrometry,Transit'));
+    expect(serializeFilters(parse('method=Transit,Astrometry'))).toBe('method=Astrometry%2CTransit');
   });
 
   it.each([
-    ['empty entries', 'method=Transit,,Imaging', ['Transit', 'Imaging']],
-    ['padding around each name', 'method=%20Transit%20,%20Imaging%20', ['Transit', 'Imaging']],
-    ['a repeated method', 'method=Transit,Imaging,Transit', ['Transit', 'Imaging']],
+    ['empty entries', 'method=Transit,,Imaging', ['Imaging', 'Transit']],
+    ['padding around each name', 'method=%20Transit%20,%20Imaging%20', ['Imaging', 'Transit']],
+    ['a repeated method', 'method=Transit,Imaging,Transit', ['Imaging', 'Transit']],
     ['a list of nothing but separators', 'method=,,', []],
   ])('drops %s rather than filtering on them', (_label, query, expected) => {
     expect(parse(query)).toMatchObject({ methods: expected });

@@ -83,10 +83,12 @@ export function parseBound(raw: string): number | null | undefined {
   return Number.isFinite(value) ? value : undefined;
 }
 
+// Sorted on the way in as well as out, so a hand-written ?method= lands on the same state — and
+// so the same canonical URL — as the one the checkboxes would have produced.
 function parseMethods(raw: string | null): string[] {
   const named = raw?.split(LIST_SEPARATOR).map((value) => value.trim()) ?? [];
 
-  return Array.from(new Set(named.filter(Boolean)));
+  return Array.from(new Set(named.filter(Boolean))).sort();
 }
 
 function parseRange(raw: string | null): Range {
