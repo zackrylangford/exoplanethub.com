@@ -7,8 +7,11 @@ import ExploreClient from './ExploreClient';
 const replace = vi.fn();
 let query = '';
 
+// Stable, as the real useRouter is: a fresh object each render hides missing effect deps.
+const router = { replace };
+
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ replace }),
+  useRouter: () => router,
   usePathname: () => '/explore',
   useSearchParams: () => new URLSearchParams(query),
 }));
@@ -100,6 +103,15 @@ describe('ExploreClient filtering', () => {
 
     expect(searchBox()).toHaveValue('beta');
     expect(cardNames()).toEqual(['Beta c']);
+  });
+
+  // Whatever the URL asks for is what gets filtered, so the select has to be able to say so.
+  it('shows a method the data does not contain rather than mislabelling it "All Types"', () => {
+    query = 'method=Astrometry';
+    renderExplore();
+
+    expect(screen.getByRole('combobox', { name: /discovery method/i })).toHaveValue('Astrometry');
+    expect(tableNames()).toEqual([]);
   });
 
   it('offers the discovery methods present in the data and applies the chosen one', async () => {
@@ -196,6 +208,23 @@ describe('ExploreClient pagination', () => {
 
     expect(screen.getByText(/page 1 of 1 \(1 planets\)/i)).toBeInTheDocument();
     expect(tableNames()).toEqual(['Planet 007']);
+  });
+
+  // Previous used to read the page that was asked for rather than the one on screen, so once
+  // the clamp was active it set the page straight back to where it already was.
+  it('steps back from a clamped grid page instead of dead-clicking', async () => {
+    const { user, navigateTo } = renderExplore(many);
+    await showGrid(user);
+    await goToPage2(user);
+    await goToPage2(user);
+    expect(screen.getByText(/page 3 of 3/i)).toBeInTheDocument();
+
+    navigateTo('q=Planet 0');
+    expect(screen.getByText(/page 2 of 2/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /previous/i }));
+
+    expect(screen.getByText(/page 1 of 2/i)).toBeInTheDocument();
   });
 
   it('clamps the grid to a single empty page when nothing matches', async () => {

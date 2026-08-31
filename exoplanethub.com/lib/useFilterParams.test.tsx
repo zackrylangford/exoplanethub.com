@@ -7,8 +7,11 @@ import { useFilterParams } from '@/lib/useFilterParams';
 const replace = vi.fn();
 let query = '';
 
+// Stable, as the real useRouter is: a fresh object each render hides missing effect deps.
+const router = { replace };
+
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ replace }),
+  useRouter: () => router,
   usePathname: () => '/explore',
   useSearchParams: () => new URLSearchParams(query),
 }));
@@ -26,6 +29,7 @@ function Harness() {
       <output data-testid="state">{`${filters.q}|${filters.method ?? '-'}|${filters.sortKey}.${filters.sortOrder}`}</output>
       <button onClick={() => update({ ...filters, q: 'wolf' })}>search wolf</button>
       <button onClick={() => update({ ...filters, q: 'ross' })}>search ross</button>
+      <button onClick={() => update({ ...filters, q: 'wolf 3' })}>search wolf 3</button>
       <button onClick={() => update({ ...filters, sortKey: 'pl_rade', sortOrder: 'asc' })}>sort radius</button>
       <button onClick={() => update({ q: '', method: null, sortKey: 'disc_year', sortOrder: 'desc' })}>reset</button>
     </>
@@ -54,6 +58,11 @@ function press(name: string) {
 
 function flushDebounce() {
   vi.advanceTimersByTime(1000);
+}
+
+// Long enough for a queued write to dispatch, but not for the navigation it starts to commit.
+function dispatchWrite() {
+  vi.advanceTimersByTime(300);
 }
 
 beforeEach(() => {
@@ -174,6 +183,72 @@ describe('useFilterParams', () => {
 
     expect(state()).toBe('kepler|-|esi.asc');
     expect(replace).not.toHaveBeenCalled();
+  });
+
+  // router.replace commits asynchronously, so every keystroke in that window used to be dropped:
+  // the edit died with the arriving URL and its queued write was cancelled along with it.
+  it('keeps typing that arrives while a write of its own is still in flight', () => {
+    const { navigateTo } = mountAt('');
+
+    press('search wolf');
+    dispatchWrite();
+    press('search wolf 3');
+    navigateTo('q=wolf');
+
+    expect(state()).toBe('wolf 3|-|disc_year.desc');
+
+    flushDebounce();
+
+    expect(replace).toHaveBeenLastCalledWith('/explore?q=wolf+3', { scroll: false });
+  });
+
+  // Typing fast enough leaves more than one write outstanding; each must be recognised as ours.
+  it('keeps the edit while several of its own writes land in turn', () => {
+    const { navigateTo } = mountAt('');
+
+    press('search wolf');
+    dispatchWrite();
+    press('search ross');
+    dispatchWrite();
+    press('search wolf 3');
+
+    navigateTo('q=wolf');
+    expect(state()).toBe('wolf 3|-|disc_year.desc');
+    navigateTo('q=ross');
+    expect(state()).toBe('wolf 3|-|disc_year.desc');
+
+    flushDebounce();
+
+    expect(replace).toHaveBeenLastCalledWith('/explore?q=wolf+3', { scroll: false });
+  });
+
+  // A write can be dispatched and then overtaken, leaving a URL this hook asked for but never
+  // saw. Arriving there later is someone else's navigation and must not keep the edit alive.
+  it('does not claim a Back as its own just because it once asked for that URL', () => {
+    const { navigateTo } = mountAt('');
+
+    press('search wolf');
+    dispatchWrite();
+    navigateTo('sort=esi.desc');
+    press('search wolf 3');
+    navigateTo('q=wolf');
+
+    expect(state()).toBe('wolf|-|disc_year.desc');
+  });
+
+  it('still yields to a Back that arrives while typing continues', () => {
+    const { navigateTo } = mountAt('');
+
+    press('search wolf');
+    dispatchWrite();
+    press('search wolf 3');
+    navigateTo('sort=esi.desc');
+
+    expect(state()).toBe('|-|esi.desc');
+
+    flushDebounce();
+
+    expect(replace).toHaveBeenCalledExactlyOnceWith('/explore?q=wolf', { scroll: false });
   });
 
   it('ignores params it does not own, leaving the filters at their defaults', () => {

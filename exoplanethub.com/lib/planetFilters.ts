@@ -56,7 +56,9 @@ export function parseFilters(params: URLSearchParams): FilterState {
 export function serializeFilters(state: FilterState): string {
   const params = new URLSearchParams();
 
-  if (state.q.trim()) params.set('q', state.q);
+  const q = state.q.trim();
+
+  if (q) params.set('q', q);
   if (state.method) params.set('method', state.method);
   if (state.sortKey !== DEFAULT_SORT_KEY || state.sortOrder !== DEFAULT_SORT_ORDER) {
     params.set('sort', `${state.sortKey}.${state.sortOrder}`);

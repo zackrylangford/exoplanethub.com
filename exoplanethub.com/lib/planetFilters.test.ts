@@ -81,6 +81,10 @@ describe('serializeFilters', () => {
     expect(serializeFilters({ ...DEFAULT_FILTERS, q: '   ' })).toBe('');
   });
 
+  it('writes the search the filter actually applies, not the padding around it', () => {
+    expect(serializeFilters({ ...DEFAULT_FILTERS, q: '  wolf  ' })).toBe('q=wolf');
+  });
+
   it.each([
     ['the default view', DEFAULT_FILTERS],
     ['a search', { ...DEFAULT_FILTERS, q: 'kepler 186' }],

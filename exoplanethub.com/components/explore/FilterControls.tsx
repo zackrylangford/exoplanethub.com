@@ -15,6 +15,10 @@ const ANY_METHOD = 'all';
 export default function FilterControls({ planets, filters, onChange }: FilterControlsProps) {
   const methods = useMemo(() => discoveryMethods(planets), [planets]);
 
+  // Without an option of its own an unknown method shows as the first one: "All Types" over nothing.
+  const options =
+    filters.method && !methods.includes(filters.method) ? [filters.method, ...methods] : methods;
+
   return (
     <div className={styles.controls}>
       <input
@@ -34,7 +38,7 @@ export default function FilterControls({ planets, filters, onChange }: FilterCon
         className={styles.select}
       >
         <option value={ANY_METHOD}>All Types</option>
-        {methods.map((method) => (
+        {options.map((method) => (
           <option key={method} value={method}>
             {method}
           </option>

@@ -7,6 +7,7 @@ import FilterControls from '@/components/explore/FilterControls';
 import { PlanetSummary } from '@/lib/mockPlanets';
 import { FilterState, SortKey, applyFilters, withSort } from '@/lib/planetFilters';
 import { useFilterParams } from '@/lib/useFilterParams';
+import { usePagination } from '@/lib/usePagination';
 import styles from './page.module.css';
 
 const ITEMS_PER_PAGE = 50;
@@ -14,17 +15,14 @@ const ITEMS_PER_PAGE = 50;
 export default function ExploreClient({ planets }: { planets: PlanetSummary[] }) {
   const [selectedPlanet, setSelectedPlanet] = useState<PlanetSummary | null>(null);
   const [view, setView] = useState<'grid' | 'table'>('table');
-  const [page, setPage] = useState(1);
   const [filters, setFilters] = useFilterParams();
 
   const filtered = useMemo(() => applyFilters(planets, filters), [planets, filters]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
-  const currentPage = Math.min(page, totalPages);
+  const { page, totalPages, goTo } = usePagination(filtered.length, ITEMS_PER_PAGE);
 
   const changeFilters = (next: FilterState) => {
     setFilters(next);
-    setPage(1);
+    goTo(1);
   };
 
   return (
@@ -55,7 +53,7 @@ export default function ExploreClient({ planets }: { planets: PlanetSummary[] })
 
         {view === 'grid' ? (
           <div className={styles.grid}>
-            {filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE).map((planet) => (
+            {filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE).map((planet) => (
               <PlanetCard 
                 key={planet.pl_name} 
                 planet={planet} 
@@ -66,9 +64,9 @@ export default function ExploreClient({ planets }: { planets: PlanetSummary[] })
         ) : (
           <PlanetTable 
             planets={filtered}
-            page={currentPage}
+            page={page}
             itemsPerPage={ITEMS_PER_PAGE}
-            onPageChange={setPage}
+            onPageChange={goTo}
             onPlanetClick={setSelectedPlanet}
             sortKey={filters.sortKey}
             sortOrder={filters.sortOrder}
@@ -80,18 +78,18 @@ export default function ExploreClient({ planets }: { planets: PlanetSummary[] })
       {view === 'grid' && (
         <div className={styles.pagination}>
           <button 
-            onClick={() => setPage(p => Math.max(1, p - 1))} 
-            disabled={currentPage === 1}
+            onClick={() => goTo(page - 1)} 
+            disabled={page === 1}
             className={styles.paginationBtn}
           >
             Previous
           </button>
           <span className={styles.pageInfo}>
-            Page {currentPage} of {totalPages}
+            Page {page} of {totalPages}
           </span>
           <button 
-            onClick={() => setPage(Math.min(totalPages, currentPage + 1))} 
-            disabled={currentPage === totalPages}
+            onClick={() => goTo(page + 1)} 
+            disabled={page === totalPages}
             className={styles.paginationBtn}
           >
             Next

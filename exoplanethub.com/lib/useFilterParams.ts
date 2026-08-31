@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { FilterState, parseFilters, serializeFilters } from '@/lib/planetFilters';
 
@@ -12,35 +12,39 @@ export function useFilterParams(): [FilterState, (next: FilterState) => void] {
 
   const [unwritten, setUnwritten] = useState<FilterState | null>(null);
   const [lastQuery, setLastQuery] = useState(query);
-  const pendingWrite = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const [dispatched, setDispatched] = useState<string[]>([]);
 
-  // The URL is the truth and reclaims it the moment it moves on its own — Back/Forward, or
-  // params arriving after hydration on a prerendered page — so a stale edit cannot resurrect.
   let edit = unwritten;
   if (query !== lastQuery) {
     setLastQuery(query);
-    setUnwritten(null);
-    edit = null;
+    const landed = dispatched.indexOf(query);
+
+    // Only a query this hook never dispatched is someone else steering, and only that may
+    // drop a half-typed edit: Back/Forward, or params arriving after hydration.
+    if (landed === -1) {
+      setDispatched([]);
+      setUnwritten(null);
+      edit = null;
+    } else {
+      setDispatched(dispatched.slice(landed + 1));
+    }
   }
 
   // Memoised so the filter object stays referentially stable, keeping callers' memos alive.
   const fromUrl = useMemo(() => parseFilters(new URLSearchParams(query)), [query]);
 
-  // A queued write describes the URL it was queued from; once that moved, it is stale.
-  useEffect(() => () => clearTimeout(pendingWrite.current), [query]);
+  // Re-running on every edit is the debounce: the cleanup drops the write the last edit queued.
+  useEffect(() => {
+    if (unwritten === null) return;
 
-  const update = useCallback(
-    (next: FilterState) => {
-      setUnwritten(next);
-      const serialized = serializeFilters(next);
+    const serialized = serializeFilters(unwritten);
+    const timer = setTimeout(() => {
+      setDispatched((queued) => [...queued, serialized]);
+      router.replace(serialized ? `${pathname}?${serialized}` : pathname, { scroll: false });
+    }, WRITE_DELAY_MS);
 
-      clearTimeout(pendingWrite.current);
-      pendingWrite.current = setTimeout(() => {
-        router.replace(serialized ? `${pathname}?${serialized}` : pathname, { scroll: false });
-      }, WRITE_DELAY_MS);
-    },
-    [pathname, router],
-  );
+    return () => clearTimeout(timer);
+  }, [unwritten, pathname, router]);
 
-  return [edit ?? fromUrl, update];
+  return [edit ?? fromUrl, setUnwritten];
 }
