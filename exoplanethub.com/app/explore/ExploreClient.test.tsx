@@ -227,6 +227,19 @@ describe('ExploreClient pagination', () => {
     expect(screen.getByText(/page 1 of 2/i)).toBeInTheDocument();
   });
 
+  // Both views page through one hook, so a second page size cannot creep back into either.
+  it('keeps the same page window when the visitor switches view', async () => {
+    const { user } = renderExplore(many);
+    await goToPage2(user);
+    expect(screen.getByText(/page 2 of 3/i)).toBeInTheDocument();
+    expect(tableNames()).toHaveLength(50);
+
+    await showGrid(user);
+
+    expect(screen.getByText(/page 2 of 3/i)).toBeInTheDocument();
+    expect(cardNames()).toHaveLength(50);
+  });
+
   it('clamps the grid to a single empty page when nothing matches', async () => {
     const { user } = renderExplore(many);
     await showGrid(user);
