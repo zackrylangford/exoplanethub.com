@@ -87,16 +87,13 @@ describe('GET /api/planets projection', () => {
     expect(projectedFields(scanInputs()[0])).toContain('esi');
   });
 
-  it.each([
-    ['pl_orbper', 'the orbital period range filter'],
-    ['st_teff', 'the star type filter'],
-  ])('projects %s, which %s reads', async (field) => {
+  it('projects pl_orbper, which the orbital period range filter reads', async () => {
     send.mockResolvedValue({ Items: [] });
     const GET = await importRouteWithCurrentEnv();
 
     await GET();
 
-    expect(projectedFields(scanInputs()[0])).toContain(field);
+    expect(projectedFields(scanInputs()[0])).toContain('pl_orbper');
   });
 
   it('projects exactly the shared summary field list', async () => {

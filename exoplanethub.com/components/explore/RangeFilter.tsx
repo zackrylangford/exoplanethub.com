@@ -4,6 +4,14 @@ import { Range, isRangeActive, parseBound } from '@/lib/planetFilters';
 import { logScale, toSignificantDigits } from './logScale';
 import styles from './RangeFilter.module.css';
 
+// A dragged thumb parks at its neighbour rather than crossing it. Typed bounds are taken
+// literally instead, so the number inputs still accept a crossed pair and match nothing.
+function withUncrossedBound(range: Range, edge: 'min' | 'max', next: number): Range {
+  return edge === 'min'
+    ? { ...range, min: range.max === null ? next : Math.min(next, range.max) }
+    : { ...range, max: range.min === null ? next : Math.max(next, range.min) };
+}
+
 interface RangeFilterProps {
   label: string;
   unit: string;
@@ -26,8 +34,33 @@ export default function RangeFilter({
 
   const noteId = `${ids}-note`;
   const describedBy = isRangeActive(value) ? noteId : undefined;
+
+  // parseBound also guards the URL, where a non-numeric bound invalidates the whole range; a
+  // type="number" input can only hand back '' or a number, so undefined here just means unset.
   const setBound = (edge: 'min' | 'max', raw: string) =>
     onChange({ ...value, [edge]: parseBound(raw) ?? null });
+
+  const extentText = {
+    min: scale ? String(toSignificantDigits(scale.min)) : '',
+    max: scale ? String(toSignificantDigits(scale.max)) : '',
+  };
+
+  // Crossed bounds match nothing, and a track drawn from them reads as the range they swap into.
+  const crossed = value.min !== null && value.max !== null && value.min > value.max;
+
+  const track =
+    scale && !crossed
+      ? {
+          steps: scale.steps,
+          toValue: scale.toValue,
+          lower: scale.toPosition(value.min ?? scale.min),
+          upper: scale.toPosition(value.max ?? scale.max),
+        }
+      : null;
+
+  // Both thumbs stack at the top of the track, and only the lower one has anywhere to go, so it
+  // has to out-paint the upper to be draggable at all.
+  const raiseLowerThumb = track !== null && track.lower === track.steps;
 
   return (
     <fieldset className={styles.group}>
@@ -44,7 +77,7 @@ export default function RangeFilter({
           type="number"
           className={styles.number}
           value={value.min ?? ''}
-          placeholder={scale ? String(toSignificantDigits(scale.min)) : ''}
+          placeholder={extentText.min}
           aria-describedby={describedBy}
           onChange={(event) => setBound('min', event.target.value)}
         />
@@ -56,36 +89,39 @@ export default function RangeFilter({
           type="number"
           className={styles.number}
           value={value.max ?? ''}
-          placeholder={scale ? String(toSignificantDigits(scale.max)) : ''}
+          placeholder={extentText.max}
           aria-describedby={describedBy}
           onChange={(event) => setBound('max', event.target.value)}
         />
       </div>
 
-      {scale && (
+      {track && (
         <div className={styles.track}>
           <input
             type="range"
             className={styles.thumb}
+            style={raiseLowerThumb ? { zIndex: 1 } : undefined}
             aria-label={`${label} lower bound`}
+            aria-valuetext={`${value.min ?? extentText.min} ${unit}`}
             aria-describedby={describedBy}
             min={0}
-            max={value.max === null ? scale.steps : scale.toPosition(value.max)}
-            value={scale.toPosition(value.min ?? scale.min)}
+            max={track.steps}
+            value={track.lower}
             onChange={(event) =>
-              onChange({ ...value, min: scale.toValue(Number(event.target.value)) })
+              onChange(withUncrossedBound(value, 'min', track.toValue(Number(event.target.value))))
             }
           />
           <input
             type="range"
             className={styles.thumb}
             aria-label={`${label} upper bound`}
+            aria-valuetext={`${value.max ?? extentText.max} ${unit}`}
             aria-describedby={describedBy}
-            min={value.min === null ? 0 : scale.toPosition(value.min)}
-            max={scale.steps}
-            value={scale.toPosition(value.max ?? scale.max)}
+            min={0}
+            max={track.steps}
+            value={track.upper}
             onChange={(event) =>
-              onChange({ ...value, max: scale.toValue(Number(event.target.value)) })
+              onChange(withUncrossedBound(value, 'max', track.toValue(Number(event.target.value))))
             }
           />
         </div>

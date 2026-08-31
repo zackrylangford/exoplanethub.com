@@ -24,7 +24,6 @@ function makePlanet(overrides: Partial<PlanetSummary> & Pick<PlanetSummary, 'pl_
     pl_rade: 1,
     pl_bmasse: 1,
     pl_eqt: 1,
-    st_teff: 5000,
     ...overrides,
   };
 }

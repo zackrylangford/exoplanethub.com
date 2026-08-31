@@ -26,7 +26,6 @@ function makePlanet(overrides: Partial<PlanetSummary> & Pick<PlanetSummary, 'pl_
     pl_rade: 1,
     pl_bmasse: 1,
     pl_eqt: 1,
-    st_teff: 5000,
     ...overrides,
   };
 }
@@ -394,13 +393,70 @@ describe('ExploreClient range filters', () => {
     expect(tableNames()).toEqual(['Alpha b']);
   });
 
-  it('stops the lower thumb at the upper bound rather than letting them cross', () => {
+  it('parks a dragged thumb at its neighbour rather than letting the bounds cross', () => {
     query = 'radius=1..2';
+    renderExplore();
+
+    fireEvent.change(rangeGroup(/radius/i).getAllByRole('slider')[0], { target: { value: '1000' } });
+
+    expect(boundInput(/radius/i, /min/i)).toHaveValue(2);
+    expect(boundInput(/radius/i, /max/i)).toHaveValue(2);
+  });
+
+  it('announces each thumb as a measurement, not as a position on the log track', () => {
+    query = 'period=10..';
+    renderExplore();
+    const [lower, upper] = rangeGroup(/orbital period/i).getAllByRole('slider');
+
+    expect(lower.getAttribute('value')).not.toBe('10');
+    expect(lower).toHaveAttribute('aria-valuetext', '10 days');
+    expect(upper).toHaveAttribute('aria-valuetext', '1000 days');
+
+    fireEvent.change(lower, { target: { value: '0' } });
+
+    expect(rangeGroup(/orbital period/i).getAllByRole('slider')[0]).toHaveAttribute(
+      'aria-valuetext',
+      '0.5 days'
+    );
+  });
+
+  // A range input with min === max paints its thumb at the left end whatever its value, which
+  // drew "radius at least 3" as the entire track selected.
+  it.each(['radius=3..3', 'radius=1..1'])(
+    'never collapses a thumb with both bounds on one measurement (%s)',
+    (range) => {
+      query = range;
+      renderExplore();
+
+      for (const thumb of rangeGroup(/radius/i).getAllByRole('slider')) {
+        expect(thumb.getAttribute('min')).not.toBe(thumb.getAttribute('max'));
+      }
+    }
+  );
+
+  it('raises the lower thumb where they stack, so the pointer reaches the one that can move', () => {
+    query = 'radius=3..';
     renderExplore();
     const [lower, upper] = rangeGroup(/radius/i).getAllByRole('slider');
 
-    expect(Number(lower.getAttribute('max'))).toBe(Number(upper.getAttribute('value')));
-    expect(Number(upper.getAttribute('min'))).toBe(Number(lower.getAttribute('value')));
+    expect(lower.getAttribute('value')).toBe(upper.getAttribute('value'));
+    expect(lower.style.zIndex).toBe('1');
+  });
+
+  it('leaves the thumbs in document order while they sit apart', () => {
+    query = 'radius=1..3';
+    renderExplore();
+
+    expect(rangeGroup(/radius/i).getAllByRole('slider')[0].style.zIndex).toBe('');
+  });
+
+  it('drops the track when the bounds cross, rather than drawing the range they swap into', () => {
+    query = 'radius=3..1';
+    renderExplore();
+
+    expect(rangeGroup(/radius/i).queryAllByRole('slider')).toEqual([]);
+    expect(boundInput(/radius/i, /min/i)).toHaveValue(3);
+    expect(boundInput(/radius/i, /max/i)).toHaveValue(1);
   });
 
   // Narrowed to 100 planets, so page 2 still exists and only an explicit reset can move off it.
