@@ -87,6 +87,18 @@ describe('GET /api/planets projection', () => {
     expect(projectedFields(scanInputs()[0])).toContain('esi');
   });
 
+  it.each([
+    ['pl_orbper', 'the orbital period range filter'],
+    ['st_teff', 'the star type filter'],
+  ])('projects %s, which %s reads', async (field) => {
+    send.mockResolvedValue({ Items: [] });
+    const GET = await importRouteWithCurrentEnv();
+
+    await GET();
+
+    expect(projectedFields(scanInputs()[0])).toContain(field);
+  });
+
   it('projects exactly the shared summary field list', async () => {
     send.mockResolvedValue({ Items: [] });
     const GET = await importRouteWithCurrentEnv();
