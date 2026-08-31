@@ -1,5 +1,5 @@
 'use client';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { PlanetSummary } from '@/lib/mockPlanets';
 import {
   FilterState,
@@ -41,10 +41,16 @@ export default function FilterControls({ planets, filters, onChange }: FilterCon
   // Kept apart from the merge below so ticking a box never rescans the whole archive.
   const present = useMemo(() => discoveryMethods(planets), [planets]);
 
+  // Deriving the boxes from the selection they mutate would unmount one mid-click, dropping the
+  // visitor's focus on <body>, so a method stays on offer for the rest of the mount once selected.
+  const [everSelected, setEverSelected] = useState(filters.methods);
+  const unoffered = filters.methods.filter((method) => !everSelected.includes(method));
+  if (unoffered.length > 0) setEverSelected([...everSelected, ...unoffered]);
+
   // A method the data no longer contains still gets a box, so a shared URL shows what it filters by.
   const methods = useMemo(
-    () => Array.from(new Set([...present, ...filters.methods])).sort(),
-    [present, filters.methods],
+    () => Array.from(new Set([...present, ...everSelected])).sort(),
+    [present, everSelected],
   );
   const extents = useMemo(
     () => RANGE_KEYS.map((key) => ({ key, extent: measuredExtent(planets, key) })),
