@@ -3,9 +3,10 @@
 ## Direction
 
 ExoplanetHub is an archive first: a complete, queryable, shareable view of NASA's confirmed
-exoplanets. What the site presents as new — recent confirmations, retractions, records broken —
-is derived from the scheduled sync's diff against the archive, never hand-written. There is no
-blog and no editorial pipeline; if the data does not say it, the site does not claim it.
+exoplanets. What the site presents as new is derived from the scheduled sync's diff against the
+archive, never hand-written. Today that is the latest-confirmations feed; retractions and records
+broken follow from the same diff. There is no blog and no editorial pipeline; if the data does not
+say it, the site does not claim it.
 
 ## Shipped
 
