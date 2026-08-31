@@ -18,7 +18,8 @@ export default function ExploreClient({ planets }: { planets: PlanetSummary[] })
   const [filters, setFilters] = useFilterParams();
 
   const filtered = useMemo(() => applyFilters(planets, filters), [planets, filters]);
-  const { page, totalPages, goTo } = usePagination(filtered.length, ITEMS_PER_PAGE);
+  const pagination = usePagination(filtered.length, ITEMS_PER_PAGE);
+  const { page, totalPages, goTo, pageItems } = pagination;
 
   const changeFilters = (next: FilterState) => {
     setFilters(next);
@@ -53,7 +54,7 @@ export default function ExploreClient({ planets }: { planets: PlanetSummary[] })
 
         {view === 'grid' ? (
           <div className={styles.grid}>
-            {filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE).map((planet) => (
+            {pageItems(filtered).map((planet) => (
               <PlanetCard 
                 key={planet.pl_name} 
                 planet={planet} 
@@ -64,9 +65,7 @@ export default function ExploreClient({ planets }: { planets: PlanetSummary[] })
         ) : (
           <PlanetTable 
             planets={filtered}
-            page={page}
-            itemsPerPage={ITEMS_PER_PAGE}
-            onPageChange={goTo}
+            pagination={pagination}
             onPlanetClick={setSelectedPlanet}
             sortKey={filters.sortKey}
             sortOrder={filters.sortOrder}

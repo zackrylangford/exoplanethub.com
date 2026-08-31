@@ -2,15 +2,14 @@
 import { useMemo } from 'react';
 import { PlanetSummary } from '@/lib/mockPlanets';
 import { SortKey, SortOrder } from '@/lib/planetFilters';
+import { Pagination } from '@/lib/usePagination';
 import ESIInfoButton from './ESIInfoButton';
 import { getESIBand } from './esiBands';
 import styles from './PlanetTable.module.css';
 
 interface PlanetTableProps {
   planets: PlanetSummary[];
-  page: number;
-  itemsPerPage: number;
-  onPageChange: (page: number) => void;
+  pagination: Pagination;
   onPlanetClick: (planet: PlanetSummary) => void;
   sortKey: SortKey;
   sortOrder: SortOrder;
@@ -55,7 +54,8 @@ function ESIScore({ score }: { score: number | undefined }) {
   );
 }
 
-export default function PlanetTable({ planets, page, itemsPerPage, onPageChange, onPlanetClick, sortKey, sortOrder, onSort }: PlanetTableProps) {
+export default function PlanetTable({ planets, pagination, onPlanetClick, sortKey, sortOrder, onSort }: PlanetTableProps) {
+  const { page, totalPages, goTo, pageItems } = pagination;
   const sorted = useMemo(
     () => [...planets].sort((a, b) => compareSortValues(a[sortKey], b[sortKey], sortOrder)),
     [planets, sortKey, sortOrder],
@@ -63,8 +63,7 @@ export default function PlanetTable({ planets, page, itemsPerPage, onPageChange,
 
   const esiAriaSort = sortKey !== 'esi' ? 'none' : sortOrder === 'asc' ? 'ascending' : 'descending';
 
-  const paginatedPlanets = sorted.slice((page - 1) * itemsPerPage, page * itemsPerPage);
-  const totalPages = Math.max(1, Math.ceil(sorted.length / itemsPerPage));
+  const paginatedPlanets = pageItems(sorted);
 
   return (
     <>
@@ -116,7 +115,7 @@ export default function PlanetTable({ planets, page, itemsPerPage, onPageChange,
 
       <div className={styles.pagination}>
         <button 
-          onClick={() => onPageChange(Math.max(1, page - 1))} 
+          onClick={() => goTo(page - 1)} 
           disabled={page === 1}
           className={styles.paginationBtn}
         >
@@ -126,7 +125,7 @@ export default function PlanetTable({ planets, page, itemsPerPage, onPageChange,
           Page {page} of {totalPages} ({planets.length} planets)
         </span>
         <button 
-          onClick={() => onPageChange(Math.min(totalPages, page + 1))} 
+          onClick={() => goTo(page + 1)} 
           disabled={page === totalPages}
           className={styles.paginationBtn}
         >

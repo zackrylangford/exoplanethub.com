@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Planet } from '@/lib/mockPlanets';
 import type { SortKey, SortOrder } from '@/lib/planetFilters';
 import PlanetTable from '@/components/explore/PlanetTable';
+import { usePagination } from '@/lib/usePagination';
 import { getESIBand } from '@/components/explore/esiBands';
 
 function makePlanet(overrides: Partial<Planet> & Pick<Planet, 'pl_name'>): Planet {
@@ -38,31 +39,42 @@ const BETA = makePlanet({ pl_name: 'Beta c', hostname: 'Kepler-186', disc_year: 
 const GAMMA = makePlanet({ pl_name: 'Gamma d', hostname: 'Wolf 359', disc_year: 2008 });
 
 type TableProps = React.ComponentProps<typeof PlanetTable>;
+type HarnessProps = Omit<Partial<TableProps>, 'pagination'> & { itemsPerPage?: number };
 
-function renderTable(props: Partial<TableProps> = {}) {
-  const onPageChange = vi.fn();
+// Driven by the real hook rather than a stub, so paging here exercises the contract the table is given.
+function TableHarness({
+  itemsPerPage = 10,
+  planets = [ALPHA, BETA, GAMMA],
+  sortKey = 'disc_year',
+  sortOrder = 'desc',
+  onPlanetClick = () => {},
+  onSort = () => {},
+}: HarnessProps) {
+  const pagination = usePagination(planets.length, itemsPerPage);
+
+  return (
+    <PlanetTable
+      planets={planets}
+      pagination={pagination}
+      sortKey={sortKey}
+      sortOrder={sortOrder}
+      onPlanetClick={onPlanetClick}
+      onSort={onSort}
+    />
+  );
+}
+
+function renderTable(props: HarnessProps = {}) {
   const onPlanetClick = vi.fn();
   const onSort = vi.fn();
 
-  const withDefaults = (overrides: Partial<TableProps>) => (
-    <PlanetTable
-      planets={[ALPHA, BETA, GAMMA]}
-      page={1}
-      itemsPerPage={10}
-      onPageChange={onPageChange}
-      onPlanetClick={onPlanetClick}
-      sortKey="disc_year"
-      sortOrder="desc"
-      onSort={onSort}
-      {...props}
-      {...overrides}
-    />
+  const withDefaults = (overrides: HarnessProps) => (
+    <TableHarness onPlanetClick={onPlanetClick} onSort={onSort} {...props} {...overrides} />
   );
 
   const { rerender } = render(withDefaults({}));
 
   return {
-    onPageChange,
     onPlanetClick,
     onSort,
     sortBy: (sortKey: SortKey, sortOrder: SortOrder) => rerender(withDefaults({ sortKey, sortOrder })),
@@ -312,12 +324,29 @@ describe('PlanetTable pagination', () => {
 
   it('disables Previous on the first page and advances via Next', async () => {
     const user = userEvent.setup();
-    const { onPageChange } = renderTable({ itemsPerPage: 2 });
+    renderTable({ itemsPerPage: 2 });
 
     expect(screen.getByRole('button', { name: /previous/i })).toBeDisabled();
     await user.click(screen.getByRole('button', { name: /next/i }));
 
-    expect(onPageChange).toHaveBeenCalledWith(2);
+    expect(renderedNames()).toEqual(['Gamma d']);
+    expect(screen.getByText(/page 2 of 2 \(3 planets\)/i)).toBeInTheDocument();
+  });
+
+  // The page count belongs to usePagination alone; the table must report it, never recompute it.
+  it('reports the page count it was given rather than deriving one from the rows', () => {
+    render(
+      <PlanetTable
+        planets={[ALPHA, BETA, GAMMA]}
+        pagination={{ page: 2, totalPages: 7, goTo: () => {}, pageItems: (items) => items.slice(0, 1) }}
+        onPlanetClick={() => {}}
+        sortKey="disc_year"
+        sortOrder="desc"
+        onSort={() => {}}
+      />,
+    );
+
+    expect(screen.getByText(/page 2 of 7 \(3 planets\)/i)).toBeInTheDocument();
   });
 });
 
