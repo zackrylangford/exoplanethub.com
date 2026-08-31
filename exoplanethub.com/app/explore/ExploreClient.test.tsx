@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import rangeStyles from '@/components/explore/RangeFilter.module.css';
@@ -91,7 +91,11 @@ function starBox(name: RegExp) {
 }
 
 function resultsCount() {
-  return screen.getByText(/\d+ of \d+ planets/i);
+  return screen.getByText(/^\d+ of \d+ planets$/i);
+}
+
+function announcement() {
+  return screen.getByRole('status');
 }
 
 function emptyState() {
@@ -729,10 +733,19 @@ describe('ExploreClient results count', () => {
     expect(resultsCount()).toHaveTextContent('1 of 3 planets');
   });
 
-  it('announces itself politely, so a filter change reaches a screen reader', () => {
+  it('waits for typing to settle before announcing, so it does not read every keystroke', () => {
+    vi.useFakeTimers();
     renderExplore();
+    expect(announcement()).toHaveTextContent('Showing 3 of 3 planets');
 
-    expect(resultsCount()).toHaveAttribute('aria-live', 'polite');
+    fireEvent.change(searchBox(), { target: { value: 'beta' } });
+
+    expect(resultsCount()).toHaveTextContent('1 of 3 planets');
+    expect(announcement()).toHaveTextContent('Showing 3 of 3 planets');
+
+    act(() => vi.advanceTimersByTime(1000));
+
+    expect(announcement()).toHaveTextContent('Showing 1 of 3 planets');
   });
 
   it('keeps counting while nothing matches, rather than disappearing with the list', async () => {
@@ -781,20 +794,31 @@ describe('ExploreClient empty results', () => {
 describe('ExploreClient clear all', () => {
   const EVERYTHING = 'q=beta&method=Transit&star=G&radius=0.5..2&sort=pl_rade.asc';
 
-  it('puts every filter back and strips the query string', () => {
+  it('puts every filter back and strips them from the query string', () => {
     vi.useFakeTimers();
     query = EVERYTHING;
     renderExplore();
 
     fireEvent.click(screen.getByRole('button', { name: 'Clear all' }));
-    vi.advanceTimersByTime(1000);
+    act(() => vi.advanceTimersByTime(1000));
 
-    expect(replace).toHaveBeenLastCalledWith('/explore', { scroll: false });
+    expect(replace).toHaveBeenLastCalledWith('/explore?sort=pl_rade.asc', { scroll: false });
     expect(searchBox()).toHaveValue('');
     expect(methodBox('Transit')).not.toBeChecked();
     expect(starBox(/sun-like/i)).not.toBeChecked();
     expect(boundInput(/radius/i, /min/i)).toHaveValue(null);
-    expect(tableNames()).toEqual(['Beta c', 'Alpha b', 'Gamma d']);
+  });
+
+  // `Clear all` stays disabled under a sort alone, so it must not quietly throw one away either.
+  it('leaves the chosen sort standing, since sort is not one of the filters it clears', () => {
+    query = 'q=beta&sort=pl_rade.asc';
+    renderExplore();
+    expect(tableNames()).toEqual(['Beta c']);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear all' }));
+
+    expect(tableNames()).toEqual(['Beta c', 'Gamma d', 'Alpha b']);
+    expect(sortHeader(/radius/i)).toHaveTextContent('▲');
   });
 
   it('is offered only once something is actually filtered', () => {

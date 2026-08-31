@@ -53,7 +53,7 @@ describe('star band table', () => {
 
   it('labels every class in plain language, not just the letter', () => {
     expect(STAR_BANDS.map((band) => band.label)).toEqual([
-      'O — blue giant',
+      'O — blue',
       'B — blue-white',
       'A — white',
       'F — yellow-white',

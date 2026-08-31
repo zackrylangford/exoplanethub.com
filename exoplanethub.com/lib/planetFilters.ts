@@ -225,6 +225,11 @@ export function isFiltered(state: FilterState): boolean {
   return activePredicates(state).length > 0;
 }
 
+// Sort is not a filter — `activePredicates` never registers it — so clearing must leave it standing.
+export function cleared(state: FilterState): FilterState {
+  return { ...DEFAULT_FILTERS, sortKey: state.sortKey, sortOrder: state.sortOrder };
+}
+
 export function applyFilters(planets: PlanetSummary[], state: FilterState): PlanetSummary[] {
   const predicates = activePredicates(state);
   if (predicates.length === 0) return planets;

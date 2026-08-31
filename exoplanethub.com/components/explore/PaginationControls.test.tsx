@@ -59,4 +59,33 @@ describe('PaginationControls', () => {
     await user.click(step(/next/i));
     expect(goTo).toHaveBeenLastCalledWith(4);
   });
+
+  // A button that disables itself the instant it works would drop focus to the top of the document.
+  it('hands focus to the page indicator when Next disables itself at the last page', async () => {
+    const user = userEvent.setup();
+    render(<Harness itemCount={3} itemsPerPage={2} />);
+
+    await user.click(step(/next/i));
+
+    expect(screen.getByText(/page 2 of 2/i)).toHaveFocus();
+  });
+
+  it('hands focus to the page indicator when Previous disables itself at the first page', async () => {
+    const user = userEvent.setup();
+    render(<Harness itemCount={5} itemsPerPage={2} />);
+    await user.click(step(/next/i));
+
+    await user.click(step(/previous/i));
+
+    expect(screen.getByText(/page 1 of 3/i)).toHaveFocus();
+  });
+
+  it('leaves focus on the button while it stays usable, so paging can be repeated', async () => {
+    const user = userEvent.setup();
+    render(<Harness itemCount={9} itemsPerPage={2} />);
+
+    await user.click(step(/next/i));
+
+    expect(step(/next/i)).toHaveFocus();
+  });
 });

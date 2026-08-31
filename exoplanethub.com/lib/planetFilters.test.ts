@@ -7,6 +7,7 @@ import {
   RangeKey,
   applyFilters,
   discoveryMethods,
+  cleared,
   isFiltered,
   measuredExtent,
   parseFilters,
@@ -624,5 +625,34 @@ describe('isFiltered', () => {
 
   it('does not count a search of nothing but whitespace', () => {
     expect(isFiltered({ ...DEFAULT_FILTERS, q: '   ' })).toBe(false);
+  });
+});
+
+describe('cleared', () => {
+  const EVERYTHING: FilterState = {
+    ...DEFAULT_FILTERS,
+    q: 'kepler',
+    methods: ['Transit'],
+    starClasses: ['G'],
+    ranges: { ...DEFAULT_FILTERS.ranges, radius: { min: 1, max: 2 } },
+    sortKey: 'pl_rade',
+    sortOrder: 'asc',
+  };
+
+  it('drops every filter isFiltered counts', () => {
+    expect(isFiltered(cleared(EVERYTHING))).toBe(false);
+  });
+
+  // The same rule as isFiltered, in the same module, so the two can never disagree about sort.
+  it('keeps the sort, which isFiltered does not count as a filter', () => {
+    expect(cleared(EVERYTHING)).toMatchObject({ sortKey: 'pl_rade', sortOrder: 'asc' });
+  });
+
+  it('leaves the state it was handed alone', () => {
+    const before = structuredClone(EVERYTHING);
+
+    cleared(EVERYTHING);
+
+    expect(EVERYTHING).toEqual(before);
   });
 });

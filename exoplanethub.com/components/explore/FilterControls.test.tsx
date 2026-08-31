@@ -116,7 +116,7 @@ describe('FilterControls star type', () => {
         .getAllByRole('checkbox')
         .map((box) => box.closest('label')?.textContent),
     ).toEqual([
-      'O — blue giant',
+      'O — blue',
       'B — blue-white',
       'A — white',
       'F — yellow-white',

@@ -1,7 +1,8 @@
 'use client';
 import styles from './NoResults.module.css';
 
-// No clear action means no filter is hiding anything, so the archive itself came back empty.
+// No clear action means no filter is hiding anything, and a failed load never reaches here — the
+// page shows its own error instead — so an empty list really is an empty response.
 export default function NoResults({ onClear }: { onClear?: () => void }) {
   const copy = onClear
     ? {
@@ -10,7 +11,7 @@ export default function NoResults({ onClear }: { onClear?: () => void }) {
       }
     : {
         headline: 'No planets to show',
-        detail: 'The archive returned nothing to explore.',
+        detail: 'The archive came back without a single planet in it.',
       };
 
   return (

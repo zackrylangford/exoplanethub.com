@@ -1,7 +1,7 @@
 // Class edges from the Pecaut & Mamajek (2013) dwarf calibration, hottest first so a lookup is
 // the first band a temperature reaches. Half-open, lower bound inclusive, in kelvin.
 const BANDS = [
-  { starClass: 'O', minTeff: 33000, label: 'O — blue giant' },
+  { starClass: 'O', minTeff: 33000, label: 'O — blue' },
   { starClass: 'B', minTeff: 10000, label: 'B — blue-white' },
   { starClass: 'A', minTeff: 7300, label: 'A — white' },
   { starClass: 'F', minTeff: 6000, label: 'F — yellow-white' },

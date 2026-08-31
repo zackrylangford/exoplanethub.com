@@ -5,12 +5,13 @@ import NoResults from '@/components/explore/NoResults';
 import PlanetGrid from '@/components/explore/PlanetGrid';
 import PlanetModal from '@/components/explore/PlanetModal';
 import PlanetTable from '@/components/explore/PlanetTable';
+import ResultsCount from '@/components/explore/ResultsCount';
 import { PlanetSummary } from '@/lib/mockPlanets';
 import {
-  DEFAULT_FILTERS,
   FilterState,
   SortKey,
   applyFilters,
+  cleared,
   isFiltered,
   sortPlanets,
   withSort,
@@ -41,7 +42,7 @@ export default function ExploreClient({ planets }: { planets: PlanetSummary[] })
   // Every control that clears is gone or disabled the instant it works, so focus needs somewhere
   // real to land; the search box is both still present and the likeliest next move.
   const clearFilters = () => {
-    changeFilters(DEFAULT_FILTERS);
+    changeFilters(cleared(filters));
     searchRef.current?.focus();
   };
 
@@ -77,9 +78,7 @@ export default function ExploreClient({ planets }: { planets: PlanetSummary[] })
           searchRef={searchRef}
         />
 
-        <p className={styles.resultsCount} aria-live="polite">
-          {visible.length} of {planets.length} planets
-        </p>
+        <ResultsCount visible={visible.length} total={planets.length} />
 
         {visible.length === 0 ? (
           <NoResults onClear={isFiltered(filters) ? clearFilters : undefined} />
