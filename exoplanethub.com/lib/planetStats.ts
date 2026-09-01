@@ -1,5 +1,5 @@
 import type { Planet } from '@/lib/mockPlanets';
-import { STAR_BANDS, starClassOf } from '@/lib/starBands';
+import { starBandOf } from '@/lib/starBands';
 
 export interface PlanetStat {
   label: string;
@@ -44,8 +44,7 @@ function distanceFromEarth(parsecs: number | null): string | null {
 }
 
 function spectralClass(starTemperature: number | null): string | null {
-  const starClass = starClassOf(starTemperature);
-  return STAR_BANDS.find((band) => band.starClass === starClass)?.label ?? null;
+  return starBandOf(starTemperature)?.label ?? null;
 }
 
 export function planetStatSections(planet: Planet): PlanetStatSection[] {

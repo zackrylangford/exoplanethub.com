@@ -36,6 +36,7 @@ describe('MissingPlanetSearch', () => {
     ['the segment is malformed', '/planet/%ZZ'],
     ['no name was given', '/planet/'],
     ['the router has no path to offer', null],
+    ['the segment is a spoofed sentence, not a name', `/planet/${'Your account is locked. '.repeat(10)}`],
   ])('falls back to browsing the whole archive when %s', (_case, pathname) => {
     const link = renderAt(pathname);
 

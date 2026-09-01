@@ -94,6 +94,13 @@
   color: var(--color-accent);
 }
 
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+}
+
 .action {
   display: block;
   width: fit-content;
@@ -103,13 +110,31 @@
   border: 1px solid var(--color-primary);
   border-radius: 8px;
   color: var(--color-primary-contrast);
+  font-family: inherit;
   font-size: 16px;
   font-weight: 600;
+  cursor: pointer;
+}
+
+.actions .action {
+  margin: 0;
 }
 
 .action:hover {
   background: var(--color-accent);
   border-color: var(--color-accent);
+}
+
+.actionQuiet {
+  background: transparent;
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+.actionQuiet:hover {
+  background: var(--color-surface);
+  border-color: var(--color-primary);
+  color: var(--color-text);
 }
 
 .action:focus-visible {

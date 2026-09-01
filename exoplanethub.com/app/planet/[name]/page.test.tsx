@@ -135,7 +135,7 @@ describe('PlanetPage', () => {
     expect(credit.parentElement).toHaveTextContent('synced August 30, 2026');
   });
 
-  it('reads one item, letting the cached fetch serve the metadata that shares it', async () => {
+  it('reads the item once per render', async () => {
     await renderPage('Kepler-452%20b');
 
     expect(getPlanetDetail).toHaveBeenCalledTimes(1);
