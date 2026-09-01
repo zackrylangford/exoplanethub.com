@@ -15,7 +15,9 @@ const poppins = Poppins({
   subsets: ["latin"],
 });
 
+// Resolves the relative canonical and og:url a page returns, so a shared link is absolute.
 export const metadata: Metadata = {
+  metadataBase: new URL("https://exoplanethub.com"),
   title: "ExoplanetHub - Discover Worlds Beyond Our Solar System",
   description: "Explore thousands of confirmed exoplanets with detailed data and visualizations",
 };
