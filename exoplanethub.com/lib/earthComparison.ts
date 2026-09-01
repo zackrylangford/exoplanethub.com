@@ -5,8 +5,8 @@ export interface EarthComparison {
   detail: string;
 }
 
-// Earth radiates at 255 K on sunlight alone; the familiar 288 K is what its atmosphere adds, and
-// pl_eqt is measured without one. Comparing against 288 would flatter every airless world.
+// pl_eqt excludes atmosphere, so Earth's airless 255 K is the honest baseline; the sync's compute_esi
+// uses 288 K as a similarity kernel reference, which is a different job.
 const EARTH_EQUILIBRIUM_TEMPERATURE_K = 255;
 
 const KELVIN_AT_ZERO_CELSIUS = 273.15;
@@ -14,9 +14,15 @@ const DAYS_PER_EARTH_YEAR = 365.25;
 const HOURS_PER_DAY = 24;
 
 // Pinned locale so a sentence reads identically wherever the page is rendered or cached.
-const AMOUNT = new Intl.NumberFormat('en-US', { maximumSignificantDigits: 2 });
+const WHOLE = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
+const FEW = new Intl.NumberFormat('en-US', { maximumSignificantDigits: 2 });
 const PROPORTION = new Intl.NumberFormat('en-US', { style: 'percent', maximumSignificantDigits: 2 });
-const DEGREES = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
+
+// Two significant digits would round a 267-day orbit to 270, a number the archive never held and one
+// the Planet section contradicts further down the same page.
+function amount(value: number): string {
+  return (value >= 10 ? WHOLE : FEW).format(value);
+}
 
 // Ratios, kelvin and orbital periods are positive by definition, so a stored zero or negative is a
 // corrupt row rather than a measurement, and reads as unknown.
@@ -28,7 +34,7 @@ function isComparable(value: number | null | undefined): value is number {
 function proportionOfEarth(ratio: number | null, subject: string): string | null {
   if (!isComparable(ratio)) return null;
 
-  const multiple = AMOUNT.format(ratio);
+  const multiple = amount(ratio);
   if (multiple === '1') return `Almost exactly ${subject}.`;
 
   return `About ${ratio < 1 ? `${PROPORTION.format(ratio)} of` : `${multiple} times`} ${subject}.`;
@@ -41,7 +47,7 @@ function everydayDegrees(kelvin: number): string {
 
 // Rounding a temperature just below zero yields -0, which reads as a typo.
 function round(degrees: number): string {
-  return DEGREES.format(Object.is(Math.round(degrees), -0) ? 0 : degrees);
+  return WHOLE.format(Object.is(Math.round(degrees), -0) ? 0 : degrees);
 }
 
 function temperature(kelvin: number | null): string | null {
@@ -52,8 +58,8 @@ function temperature(kelvin: number | null): string | null {
   )} for Earth measured the same way.`;
 }
 
-function orbitLasting(amount: number, unit: string): string {
-  const count = AMOUNT.format(amount);
+function orbitLasting(value: number, unit: string): string {
+  const count = amount(value);
   return `A year here lasts about ${count} ${unit}${count === '1' ? '' : 's'}.`;
 }
 

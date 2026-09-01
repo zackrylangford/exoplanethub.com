@@ -111,6 +111,12 @@ describe('proportions of Earth', () => {
     );
   });
 
+  it('keeps a scorched planet on the number the archive holds', () => {
+    expect(detailOf('Starlight', { pl_insol: 3247 })).toBe(
+      'About 3,247 times the starlight Earth gets from the Sun.'
+    );
+  });
+
   it('keeps a faintly lit planet legible instead of collapsing it to 0%', () => {
     expect(detailOf('Starlight', { pl_insol: 0.0004 })).toBe(
       'About 0.04% of the starlight Earth gets from the Sun.'
@@ -141,6 +147,14 @@ describe('year length', () => {
 
   it('counts an orbit shorter than a day in hours', () => {
     expect(detailOf('Year', { pl_orbper: 0.75 })).toBe('A year here lasts about 18 hours.');
+  });
+
+  it('keeps a day count the archive holds instead of rounding 267 up to 270', () => {
+    expect(detailOf('Year', { pl_orbper: 267.29 })).toBe('A year here lasts about 267 Earth days.');
+  });
+
+  it('keeps an orbit just under an Earth year shorter than one', () => {
+    expect(detailOf('Year', { pl_orbper: 365 })).toBe('A year here lasts about 365 Earth days.');
   });
 
   it('counts a long orbit in Earth years rather than hundreds of days', () => {
