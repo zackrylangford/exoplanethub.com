@@ -87,3 +87,19 @@
   background: var(--color-primary);
   color: var(--color-primary-contrast);
 }
+
+.nameLink {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.nameLink:hover {
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.nameLink:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}

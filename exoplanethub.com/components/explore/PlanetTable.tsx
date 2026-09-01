@@ -1,6 +1,8 @@
 'use client';
 import { ReactNode } from 'react';
+import Link from 'next/link';
 import { PlanetSummary } from '@/lib/mockPlanets';
+import { planetUrl } from '@/lib/planetUrl';
 import { SortKey, SortOrder } from '@/lib/planetFilters';
 import { Pagination } from '@/lib/usePagination';
 import ESIInfoButton from './ESIInfoButton';
@@ -86,18 +88,28 @@ export default function PlanetTable({ planets, pagination, onPlanetClick, sortKe
           </thead>
           <tbody>
             {paginatedPlanets.map((planet) => (
+              // A mouse-only convenience: the row keeps its row semantics, so the cell's two controls carry the keyboard.
               <tr key={planet.pl_name} onClick={() => onPlanetClick(planet)}>
                 <td className={styles.planetName}>
-                  {/* A button, not a focusable row: role="button" on a <tr> strips the row semantics screen readers navigate tables with. */}
-                  <button
-                    className={styles.rowButton}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onPlanetClick(planet);
-                    }}
-                  >
-                    {planet.pl_name}
-                  </button>
+                  <span className={styles.nameCell}>
+                    <Link
+                      className={styles.nameLink}
+                      href={planetUrl(planet.pl_name)}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {planet.pl_name}
+                    </Link>
+                    <button
+                      className={styles.quickView}
+                      aria-label={`Quick view: ${planet.pl_name}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onPlanetClick(planet);
+                      }}
+                    >
+                      <span aria-hidden="true">👁</span>
+                    </button>
+                  </span>
                 </td>
                 <td>{planet.hostname || 'N/A'}</td>
                 <td>{planet.discoverymethod || 'N/A'}</td>
