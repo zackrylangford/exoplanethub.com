@@ -11,8 +11,8 @@ export const size = SHARE_IMAGE_SIZE;
 
 export const contentType = 'image/png';
 
-// Only the not-found card falls back to this; a found planet's alt is named in its page metadata,
-// which generateImageMetadata cannot supply without prerendering this route against DynamoDB.
+// Only the not-found card falls back to this; a found planet's alt is named in its page metadata.
+// generateImageMetadata could name it here, but it adds an /<id> segment and flips this route to SSG.
 export const alt = "ExoplanetHub — explore confirmed exoplanets from NASA's Exoplanet Archive";
 
 const { colors } = getTheme(SITE_THEME);
