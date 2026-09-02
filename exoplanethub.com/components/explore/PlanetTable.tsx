@@ -1,8 +1,7 @@
 'use client';
 import { ReactNode } from 'react';
-import Link from 'next/link';
 import { PlanetSummary } from '@/lib/mockPlanets';
-import { planetUrl } from '@/lib/planetUrl';
+import PlanetNameLink from '@/components/planet/PlanetNameLink';
 import { SortKey, SortOrder } from '@/lib/planetFilters';
 import { Pagination } from '@/lib/usePagination';
 import ESIInfoButton from './ESIInfoButton';
@@ -39,6 +38,25 @@ function SortableHeader({ label, column, sortKey, sortOrder, onSort, children }:
         {children}
       </span>
     </th>
+  );
+}
+
+function EyeIcon() {
+  return (
+    <svg
+      className={styles.quickViewIcon}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M1.5 12S5.5 5.5 12 5.5 22.5 12 22.5 12 18.5 18.5 12 18.5 1.5 12 1.5 12Z" />
+      <circle cx="12" cy="12" r="3.25" />
+    </svg>
   );
 }
 
@@ -92,22 +110,17 @@ export default function PlanetTable({ planets, pagination, onPlanetClick, sortKe
               <tr key={planet.pl_name} onClick={() => onPlanetClick(planet)}>
                 <td className={styles.planetName}>
                   <span className={styles.nameCell}>
-                    <Link
-                      className={styles.nameLink}
-                      href={planetUrl(planet.pl_name)}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {planet.pl_name}
-                    </Link>
+                    <PlanetNameLink name={planet.pl_name} onClick={(e) => e.stopPropagation()} />
                     <button
                       className={styles.quickView}
                       aria-label={`Quick view: ${planet.pl_name}`}
+                      title="Quick view"
                       onClick={(e) => {
                         e.stopPropagation();
                         onPlanetClick(planet);
                       }}
                     >
-                      <span aria-hidden="true">👁</span>
+                      <EyeIcon />
                     </button>
                   </span>
                 </td>

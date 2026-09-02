@@ -53,21 +53,6 @@
   gap: 8px;
 }
 
-.nameLink {
-  color: var(--color-primary);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.nameLink:hover {
-  color: var(--color-accent);
-}
-
-.nameLink:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
-}
-
 .quickView {
   display: inline-flex;
   align-items: center;
@@ -79,14 +64,19 @@
   border: none;
   border-radius: 50%;
   background: none;
-  font-size: 14px;
-  line-height: 1;
+  color: var(--color-text-muted);
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 0.2s, color 0.2s;
+}
+
+.quickViewIcon {
+  width: 16px;
+  height: 16px;
 }
 
 .quickView:hover {
   background: var(--color-border);
+  color: var(--color-text);
 }
 
 .quickView:focus-visible {

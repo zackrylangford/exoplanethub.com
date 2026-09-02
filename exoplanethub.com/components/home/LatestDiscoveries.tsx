@@ -1,8 +1,7 @@
 import { Suspense } from 'react';
-import Link from 'next/link';
 import { connection } from 'next/server';
 import { fetchLatestDiscoveries } from '@/lib/latestDiscoveries';
-import { planetUrl } from '@/lib/planetUrl';
+import PlanetNameLink from '@/components/planet/PlanetNameLink';
 import styles from './LatestDiscoveries.module.css';
 
 const HEADING_ID = 'latest-discoveries-heading';
@@ -46,7 +45,7 @@ export async function DiscoveryList() {
       {result.planets.map((planet) => (
         <li key={planet.pl_name} className={styles.item}>
           <h3 className={styles.name}>
-            <Link className={styles.nameLink} href={planetUrl(planet.pl_name)}>{planet.pl_name}</Link>
+            <PlanetNameLink name={planet.pl_name} />
           </h3>
           <dl className={styles.facts}>
             <Fact label="Host star" value={planet.hostname} />

@@ -349,8 +349,18 @@ describe('PlanetTable planet links (#68)', () => {
 
   it('keeps the quick-look control out of the accessible name of the row', () => {
     renderTable({ planets: [ALPHA] });
+    const cell = within(screen.getAllByRole('row')[1]).getAllByRole('cell')[0];
 
-    expect(within(screen.getAllByRole('row')[1]).getAllByRole('cell')[0]).toHaveTextContent('Alpha b');
+    expect(within(cell).getByRole('button')).toHaveTextContent('');
+    expect(cell.textContent).toBe('Alpha b');
+  });
+
+  it('leaves the quick-look icon out of the control\u2019s accessible name', () => {
+    renderTable({ planets: [ALPHA] });
+    const icon = quickViewButton('Alpha b').querySelector('svg');
+
+    expect(icon).toHaveAttribute('aria-hidden', 'true');
+    expect(quickViewButton('Alpha b')).toHaveAccessibleName('Quick view: Alpha b');
   });
 });
 
