@@ -27,7 +27,7 @@ export const planetsTableName = process.env.EXOPLANETS_DATABASE_TABLE || 'exopla
 
 // Aliasing every projected name keeps the field list free to grow without hitting a DynamoDB reserved word.
 export async function scanAllPlanets<Field extends keyof Planet>(
-  fields: readonly Field[]
+  fields: readonly [Field, ...Field[]]
 ): Promise<Pick<Planet, Field>[]> {
   const expressionAttributeNames = Object.fromEntries(fields.map((field) => [`#${field}`, field]));
   const projectionExpression = fields.map((field) => `#${field}`).join(', ');
