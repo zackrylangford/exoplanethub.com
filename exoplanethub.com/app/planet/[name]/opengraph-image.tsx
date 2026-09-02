@@ -19,6 +19,7 @@ interface OpenGraphImageProps {
   params: Promise<{ name: string }>;
 }
 
+// next/og ships a single Geist face, so the card's hierarchy is size, colour and shape — never weight.
 export default async function OpenGraphImage({ params }: OpenGraphImageProps) {
   const planetName = planetNameFromParam((await params).name);
   const { heading, headingSize, subheading, facts, badge } = shareCard(
@@ -56,14 +57,14 @@ export default async function OpenGraphImage({ params }: OpenGraphImageProps) {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 28, fontWeight: 600, letterSpacing: 6, color: colors.primary }}>
+            <span style={{ fontSize: 28, letterSpacing: 6, color: colors.primary }}>
               EXOPLANETHUB
             </span>
             <Badge badge={badge} />
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <div style={{ fontSize: headingSize, fontWeight: 700, lineHeight: 1.1 }}>{heading}</div>
+            <div style={{ fontSize: headingSize, lineHeight: 1.1 }}>{heading}</div>
             <div style={{ fontSize: 38, marginTop: 18, color: colors.textMuted }}>{subheading}</div>
           </div>
 
@@ -99,7 +100,6 @@ function Badge({ badge }: { badge: ShareCardBadge | null }) {
       style={{
         display: 'flex',
         fontSize: 30,
-        fontWeight: 600,
         padding: '12px 30px',
         borderRadius: 999,
         backgroundColor: badge.background,

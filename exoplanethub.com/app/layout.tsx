@@ -4,7 +4,7 @@ import "./globals.css";
 import NavBar from "@/components/layout/NavBar";
 import { generateCSSVariables, SITE_THEME } from "@/lib/theme";
 import { SITE_ORIGIN } from "@/lib/site";
-// Push
+
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],

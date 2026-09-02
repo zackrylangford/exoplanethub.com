@@ -5,7 +5,7 @@ export type ThemeName = 'nautilus' | 'cosmicDawn' | 'starlight';
 // The OG card is rendered outside the DOM, so it resolves these colours itself and must not drift.
 export const SITE_THEME: ThemeName = 'nautilus';
 
-export function getTheme(themeName: ThemeName = 'nautilus') {
+export function getTheme(themeName: ThemeName = SITE_THEME) {
   return themeConfig.themes[themeName];
 }
 

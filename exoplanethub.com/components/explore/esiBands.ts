@@ -1,4 +1,3 @@
-// Selects the theme's esiBand<tier> colour pair, for renderers that cannot resolve a custom property.
 export type ESIBandTier = 1 | 2 | 3 | 4;
 
 export interface ESIBand {
@@ -6,6 +5,7 @@ export interface ESIBand {
   range: string;
   label: string;
   description: string;
+  // Selects the theme's esiBand<tier> colour pair, for renderers that cannot resolve a custom property.
   tier: ESIBandTier;
   style: { background: string; color: string };
 }

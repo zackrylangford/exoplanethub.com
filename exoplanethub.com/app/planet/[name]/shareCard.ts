@@ -3,6 +3,8 @@ import type { Planet } from '@/lib/mockPlanets';
 import { discoveredIn, lightYearsAway } from '@/lib/planetStats';
 import { getTheme, SITE_THEME } from '@/lib/theme';
 
+const { colors } = getTheme(SITE_THEME);
+
 export interface ShareCardBadge {
   text: string;
   background: string;
@@ -66,7 +68,6 @@ function esiBadge(score: number | undefined): ShareCardBadge | null {
   if (typeof score !== 'number' || !Number.isFinite(score)) return null;
 
   const { tier, label } = getESIBand(score);
-  const { colors } = getTheme(SITE_THEME);
 
   return {
     text: `ESI ${score} · ${label}`,
