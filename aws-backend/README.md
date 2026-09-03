@@ -26,7 +26,7 @@ record with no measurable candidates is left untouched. The first sync — or a 
 registry later — writes a baseline with an empty `previous`, so its `since` is when tracking began,
 not when the holder won. Values are stored as `Decimal` through `values.to_decimal`. The table is
 retained like the tombstones: a resync recomputes the holder but never the history, which is also
-why the Lambda gets read and write access to it but no delete.
+why the Lambda gets read and write access but not `DynamoDBCrudPolicy`: it never needs `DeleteItem`.
 
 Records are skipped when the sweep aborted, because a truncated fetch would fabricate a broken
 record that flips back on the next run. The step never fails the sync: a failure is logged and

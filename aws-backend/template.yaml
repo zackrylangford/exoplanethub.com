@@ -89,7 +89,8 @@ Resources:
             TableName: !Ref ExoplanetsTable
         - DynamoDBWritePolicy:
             TableName: !Ref TombstonesTable
-        # Read + Write rather than Crud: the sync scans and puts, and history must never be deletable.
+        # Read + Write rather than Crud: the sync only scans and puts, so DeleteItem is not granted.
+        # (BatchWriteItem can still delete — the real guard on history is Retain plus this code path.)
         - DynamoDBReadPolicy:
             TableName: !Ref RecordsTable
         - DynamoDBWritePolicy:

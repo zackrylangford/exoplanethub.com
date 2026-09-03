@@ -2,6 +2,7 @@ import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from dynamo import scan_all
 from esi import esi_similarity
 from values import measured, to_decimal
 
@@ -10,30 +11,28 @@ logger = logging.getLogger(__name__)
 PREVIOUS_HOLDERS_KEPT = 20
 
 
-# `measure` maps a raw archive planet to the value ranked on, or None when it has none.
+# `measure` maps a raw archive planet to the value ranked on, or None when it has none; `pick` is max or min.
 @dataclass(frozen=True)
 class RecordSpec:
     id: str
-    measure: Callable[[dict], object]
-    direction: str
+    measure: Callable[[dict], float | None]
+    pick: Callable
 
 
 def archive_value(field):
     return lambda planet: planet.get(field)
 
 
-# The registry is the contract with the frontend: `lib/records.ts` presents these ids.
+# The registry is the contract with the frontend: these ids are what it presents.
 RECORDS = (
-    RecordSpec('most-earth-like', esi_similarity, 'max'),
-    RecordSpec('hottest', archive_value('pl_eqt'), 'max'),
-    RecordSpec('largest', archive_value('pl_rade'), 'max'),
-    RecordSpec('smallest', archive_value('pl_rade'), 'min'),
-    RecordSpec('most-massive', archive_value('pl_bmasse'), 'max'),
-    RecordSpec('shortest-year', archive_value('pl_orbper'), 'min'),
-    RecordSpec('nearest', archive_value('sy_dist'), 'min'),
+    RecordSpec('most-earth-like', esi_similarity, max),
+    RecordSpec('hottest', archive_value('pl_eqt'), max),
+    RecordSpec('largest', archive_value('pl_rade'), max),
+    RecordSpec('smallest', archive_value('pl_rade'), min),
+    RecordSpec('most-massive', archive_value('pl_bmasse'), max),
+    RecordSpec('shortest-year', archive_value('pl_orbper'), min),
+    RecordSpec('nearest', archive_value('sy_dist'), min),
 )
-
-_PICK = {'max': max, 'min': min}
 
 
 # `changed` is every record id whose item was written: exact when `aborted` is False, a lower bound when True.
@@ -55,7 +54,7 @@ def update_records_after_sweep(sweep, records_table, data, timestamp):
 def update_records(records_table, data, timestamp):
     changed = []
     try:
-        stored = _scan_items(records_table)
+        stored = scan_all(records_table, 'record_id')
         for spec in RECORDS:
             if _reconcile(spec, records_table, stored.get(spec.id), data, timestamp):
                 changed.append(spec.id)
@@ -87,7 +86,7 @@ def _current_holder(spec, data):
         return None
 
     # Sorted by name first, so among tied values the alphabetically first wins and a tie never flaps.
-    return _PICK[spec.direction](sorted(measurable), key=lambda candidate: candidate[1])
+    return spec.pick(sorted(measurable), key=lambda candidate: candidate[1])
 
 
 def _next_item(record_id, holder, stored, timestamp):
@@ -119,14 +118,3 @@ def _next_item(record_id, holder, stored, timestamp):
 
     logger.info('%s: %s moved from %s to %s', record_id, name, stored['holder']['value'], value)
     return {**stored, 'holder': {'pl_name': name, 'value': value}, 'updated_at': timestamp}
-
-
-def _scan_items(records_table):
-    request = {}
-    items = {}
-    while True:
-        page = records_table.scan(**request)
-        items.update((item['record_id'], item) for item in page['Items'])
-        if not page.get('LastEvaluatedKey'):
-            return items
-        request['ExclusiveStartKey'] = page['LastEvaluatedKey']
