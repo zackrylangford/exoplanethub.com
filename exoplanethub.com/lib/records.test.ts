@@ -142,6 +142,14 @@ describe('fetchRecords formatting', () => {
 
     expect(largest.format(2.05)).toBe('2.05 × Earth');
   });
+
+  it('reads a corrupt value as unknown rather than rendering NaN, for every record', async () => {
+    const records = recordsOf(await fetchStored(EVERY_RECORD));
+
+    for (const record of records) {
+      expect(record.format(Number.NaN), record.id).toBeNull();
+    }
+  });
 });
 
 describe('fetchRecords reads', () => {

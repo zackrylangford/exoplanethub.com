@@ -42,8 +42,8 @@ export type PlanetRecord = RecordDefinition & Omit<StoredRecord, 'record_id'>;
 export type RecordsResult = { status: 'ok'; records: PlanetRecord[] } | { status: 'unavailable' };
 
 // The stored value is the unrounded similarity; the badge shows round(100 × that), so the record must too.
-function esiScore(similarity: number): string {
-  return `ESI ${Math.round(similarity * 100)}`;
+function esiScore(similarity: number): string | null {
+  return Number.isFinite(similarity) ? `ESI ${Math.round(similarity * 100)}` : null;
 }
 
 // Presentation half of the registry; records.py owns the definitions under the same ids.
