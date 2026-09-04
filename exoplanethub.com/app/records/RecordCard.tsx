@@ -54,7 +54,7 @@ function PreviousHolders({ record }: RecordCardProps) {
       <summary className={styles.historySummary}>
         {count === 1 ? 'Previous holder' : `Previous holders (${count})`}
       </summary>
-      <ol className={styles.historyList}>
+      <ol role="list" className={styles.historyList}>
         {record.previous.map((held) => (
           <DisplacedHolderItem key={`${held.pl_name} ${held.since}`} held={held} format={record.format} />
         ))}

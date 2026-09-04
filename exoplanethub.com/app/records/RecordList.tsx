@@ -1,9 +1,7 @@
 import { connection } from 'next/server';
-import { fetchRecords } from '@/lib/records';
+import { fetchRecords, RECORD_COUNT } from '@/lib/records';
 import RecordCard from './RecordCard';
 import styles from './RecordList.module.css';
-
-const PLACEHOLDER_COUNT = 7;
 
 export default async function RecordList() {
   // Defers this subtree to request time so a failed read costs one response, not a cached page.
@@ -38,7 +36,7 @@ export function RecordListPlaceholder() {
     <>
       <p className={styles.notice}>Loading records&hellip;</p>
       <div className={styles.list} aria-hidden="true">
-        {Array.from({ length: PLACEHOLDER_COUNT }, (_, index) => (
+        {Array.from({ length: RECORD_COUNT }, (_, index) => (
           <div key={index} className={styles.placeholder} />
         ))}
       </div>

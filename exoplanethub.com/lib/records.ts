@@ -97,6 +97,8 @@ const RECORDS: readonly RecordDefinition[] = [
   },
 ];
 
+export const RECORD_COUNT = RECORDS.length;
+
 // Intersecting on id lets either half of the registry deploy first.
 function inRegistryOrder(stored: StoredRecord[]): PlanetRecord[] {
   const byId = new Map(stored.map((item) => [item.record_id, item]));

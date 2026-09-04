@@ -153,6 +153,8 @@ describe('RecordList previous holders', () => {
     const displaced = history('Hottest');
     expect(displaced).not.toHaveAttribute('open');
     expect(within(displaced).getByText('Previous holder').tagName).toBe('SUMMARY');
+    // Explicit role, not just the implicit one: Safari drops list semantics from a marker-less list.
+    expect(within(displaced).getByRole('list')).toHaveAttribute('role', 'list');
     expect(within(displaced).getByRole('link', { name: 'WASP-33 b' })).toHaveAttribute(
       'href',
       '/planet/WASP-33%20b'
@@ -176,6 +178,16 @@ describe('RecordList previous holders', () => {
       'WASP-33 b',
       'KELT-1 b',
     ]);
+  });
+
+  it('degrades a displaced holder to a bare link when its value or window cannot be shown', async () => {
+    const corrupt: DisplacedHolder = { ...WASP_33B, value: Number.NaN, until: 'not-a-date' };
+    await renderStored([stored('hottest', 'KELT-9 b', 4050, [corrupt])]);
+
+    const displaced = history('Hottest');
+    expect(within(displaced).getByRole('link', { name: 'WASP-33 b' })).toBeInTheDocument();
+    expect(within(displaced).getByRole('listitem')).toHaveTextContent(/^WASP-33 b$/);
+    expect(displaced).not.toHaveTextContent(/null|NaN|invalid|June 1, 2026/);
   });
 });
 
