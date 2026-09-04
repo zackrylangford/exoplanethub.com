@@ -63,6 +63,7 @@ pnpm install
 # AWS_SECRET_ACCESS_KEY=your_secret
 # EXOPLANETS_DATABASE_TABLE=exoplanets-dev
 # EXOPLANETS_RECORDS_TABLE=exoplanet-records-dev
+# EXOPLANETS_TOMBSTONES_TABLE=exoplanet-tombstones-dev
 
 pnpm dev
 ```

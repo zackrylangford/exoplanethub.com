@@ -4,6 +4,8 @@ import { planetHighlights } from '@/lib/planetStats';
 import { planetUrl } from '@/lib/planetUrl';
 import { SHARE_IMAGE_SIZE, shareImageAlt, shareImageUrl } from '@/lib/shareImage';
 import { SITE_NAME } from '@/lib/site';
+import { formatSyncDate } from '@/lib/syncDate';
+import type { RetiredPlanet } from '@/lib/tombstone';
 
 // The archive stores planets it has barely measured, and a preview of bare commas reads as a broken page.
 const UNMEASURED = "a confirmed exoplanet in NASA's Exoplanet Archive";
@@ -42,6 +44,38 @@ export function planetMetadata(planet: Planet | null): Metadata {
       images: [
         { url: shareImageUrl(planet.pl_name), ...SHARE_IMAGE_SIZE, alt: shareImageAlt(planet.pl_name) },
       ],
+    },
+    twitter: { card: 'summary_large_image', title, description },
+  };
+}
+
+function retiredSentence(planet: Planet, removedAt: string): string {
+  const removed = formatSyncDate(removedAt);
+  const when = removed === null ? '' : ` on ${removed}`;
+  const removal = `${planet.pl_name} was removed from NASA's Exoplanet Archive${when}`;
+  const highlights = planetHighlights(planet);
+
+  return highlights.length > 0
+    ? `${removal}. Last recorded: ${highlights.join(', ')}.`
+    : `${removal} and is no longer listed as a confirmed planet.`;
+}
+
+// Reachable for old links but kept out of the index, so no canonical and no per-planet card: the
+// share image route reads only the live table, and its fallback card already says the right thing.
+export function retiredPlanetMetadata({ planet, removedAt }: RetiredPlanet): Metadata {
+  const title = `${planet.pl_name} — Retired Exoplanet`;
+  const description = retiredSentence(planet, removedAt);
+
+  return {
+    title: `${title} | ${SITE_NAME}`,
+    description,
+    robots: { index: false, follow: false },
+    openGraph: {
+      type: 'website',
+      siteName: SITE_NAME,
+      title,
+      description,
+      url: planetUrl(planet.pl_name),
     },
     twitter: { card: 'summary_large_image', title, description },
   };
