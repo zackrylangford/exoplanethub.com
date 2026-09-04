@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Planet } from '@/lib/mockPlanets';
-import { planetMetadata } from '@/lib/planetMetadata';
+import { planetMetadata, retiredPlanetMetadata } from '@/lib/planetMetadata';
 import { SHARE_IMAGE_SIZE } from '@/lib/shareImage';
 
 const NAME_ONLY: Planet = {
@@ -34,8 +34,14 @@ const KEPLER_452B: Planet = {
   pl_rade: 1.63,
 };
 
+const REMOVED_AT = '2026-09-01T03:00:12';
+
 function describedAs(planet: Partial<Planet>): string {
   return String(planetMetadata({ ...NAME_ONLY, ...planet }).description);
+}
+
+function retiredAs(planet: Partial<Planet>, removedAt = REMOVED_AT) {
+  return retiredPlanetMetadata({ planet: { ...NAME_ONLY, ...planet }, removedAt });
 }
 
 function shareImageOf(planet: Planet) {
@@ -153,5 +159,78 @@ describe('planetMetadata for a planet we do not hold', () => {
   // Leaving openGraph unset is what lets the file convention answer with the branded card.
   it('names no share image, so the unfurl falls back to the branded card', () => {
     expect(planetMetadata(null).openGraph?.images).toBeUndefined();
+  });
+});
+
+describe('retiredPlanetMetadata', () => {
+  it('names the planet as retired in the tab and the card', () => {
+    const { title, openGraph, twitter } = retiredAs(KEPLER_452B);
+
+    expect(title).toBe('Kepler-452 b — Retired Exoplanet | ExoplanetHub');
+    expect(openGraph?.title).toBe('Kepler-452 b — Retired Exoplanet');
+    expect(twitter?.title).toBe('Kepler-452 b — Retired Exoplanet');
+  });
+
+  it('keeps the page out of the index and stops crawlers following it', () => {
+    expect(retiredAs(KEPLER_452B).robots).toEqual({ index: false, follow: false });
+  });
+
+  it('dates the removal and keeps the last recorded stats in the preview', () => {
+    expect(retiredAs(KEPLER_452B).description).toBe(
+      "Kepler-452 b was removed from NASA's Exoplanet Archive on September 1, 2026. " +
+        "Last recorded: 1.63× Earth's radius, 384.8-day orbit, 1,799 light-years away."
+    );
+  });
+
+  it('never calls an unmeasured retired planet confirmed', () => {
+    expect(retiredAs({}).description).toBe(
+      "Kepler-452 b was removed from NASA's Exoplanet Archive on September 1, 2026 and is no " +
+        'longer listed as a confirmed planet.'
+    );
+  });
+
+  it('drops the date rather than printing Invalid Date for a corrupt removal stamp', () => {
+    expect(retiredAs({}, 'not-a-date').description).toBe(
+      "Kepler-452 b was removed from NASA's Exoplanet Archive and is no longer listed as a " +
+        'confirmed planet.'
+    );
+  });
+
+  it('gives the card the same sentence as the meta description', () => {
+    const { description, openGraph, twitter } = retiredAs(KEPLER_452B);
+
+    expect(openGraph?.description).toBe(description);
+    expect(twitter?.description).toBe(description);
+  });
+
+  // A canonical on a noindex page sends crawlers two opposite signals about the same address.
+  it('claims no canonical URL while still naming the page for a share', () => {
+    const { alternates, openGraph } = retiredAs(KEPLER_452B);
+
+    expect(alternates).toBeUndefined();
+    expect(openGraph).toMatchObject({ url: '/planet/Kepler-452%20b', siteName: 'ExoplanetHub' });
+  });
+
+  // The share image route reads only the live table, so naming a per-planet card would unfurl a
+  // planet-shaped image for a page that says the planet is gone; the branded fallback is honest.
+  it('names no share image, so the unfurl falls back to the branded card', () => {
+    expect(retiredAs(KEPLER_452B).openGraph?.images).toBeUndefined();
+  });
+
+  it.each([
+    ['a dangling comma', /,\s*\./],
+    ['a dangling colon', /:\s*\./],
+    ['undefined', /undefined/],
+    ['NaN', /NaN/],
+    ['null', /null/],
+  ])('never leaks %s into a preview, whatever the snapshot withheld', (_case, leak) => {
+    const partials: Partial<Planet>[] = [
+      {},
+      { pl_rade: 1.63 },
+      { pl_rade: NaN, pl_orbper: Infinity, sy_dist: NaN },
+      KEPLER_452B,
+    ];
+
+    for (const planet of partials) expect(retiredAs(planet).description).not.toMatch(leak);
   });
 });

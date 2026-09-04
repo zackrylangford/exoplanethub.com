@@ -4,11 +4,13 @@ import ESIBadge from '@/components/explore/ESIBadge';
 import { earthComparisons, type EarthComparison } from '@/lib/earthComparison';
 import type { Planet } from '@/lib/mockPlanets';
 import { getPlanetDetail } from '@/lib/planetDetail';
-import { planetMetadata } from '@/lib/planetMetadata';
+import { planetMetadata, retiredPlanetMetadata } from '@/lib/planetMetadata';
 import { planetNameFromParam } from '@/lib/planetUrl';
 import { planetStatSections, type PlanetStatSection } from '@/lib/planetStats';
 import { formatSyncDate } from '@/lib/syncDate';
+import { getRetiredPlanet, type RetiredPlanet } from '@/lib/tombstone';
 import PageSection from './PageSection';
+import RetiredNotice from './RetiredNotice';
 import styles from './page.module.css';
 
 export const revalidate = 3600;
@@ -19,31 +21,42 @@ interface PlanetPageProps {
   params: Promise<{ name: string }>;
 }
 
+// A live planet is one the archive still lists; a retired one is the snapshot the sweep kept.
+type FoundPlanet = { planet: Planet; removedAt: null } | RetiredPlanet;
+
 // A malformed segment and an unstocked name are the same answer, so callers get one null.
-async function loadPlanet(params: PlanetPageProps['params']): Promise<Planet | null> {
+// Tombstones are read only after a live miss, so a listed planet costs the one GetItem it always did.
+async function loadPlanet(params: PlanetPageProps['params']): Promise<FoundPlanet | null> {
   const planetName = planetNameFromParam((await params).name);
-  return planetName === null ? null : getPlanetDetail(planetName);
+  if (planetName === null) return null;
+
+  const planet = await getPlanetDetail(planetName);
+  return planet === null ? getRetiredPlanet(planetName) : { planet, removedAt: null };
 }
 
-// getPlanetDetail is cache()d, so titling the page and rendering it share one GetItem.
+// Both lookups are cache()d, so titling the page and rendering it share the same reads.
 export async function generateMetadata({ params }: PlanetPageProps): Promise<Metadata> {
-  return planetMetadata(await loadPlanet(params));
+  const found = await loadPlanet(params);
+  if (found === null) return planetMetadata(null);
+
+  return found.removedAt === null ? planetMetadata(found.planet) : retiredPlanetMetadata(found);
 }
 
 export default async function PlanetPage({ params }: PlanetPageProps) {
-  const planet = await loadPlanet(params);
-  if (planet === null) notFound();
+  const found = await loadPlanet(params);
+  if (found === null) notFound();
+  const { planet } = found;
 
   return (
     <main className={styles.page}>
       <article className={styles.container}>
+        {found.removedAt !== null && (
+          <RetiredNotice planetName={planet.pl_name} removedAt={found.removedAt} />
+        )}
+
         <header className={styles.header}>
           <h1 className={styles.title}>{planet.pl_name}</h1>
-          <p className={styles.summary}>
-            {planet.hostname
-              ? `A confirmed exoplanet orbiting ${planet.hostname}.`
-              : 'A confirmed exoplanet.'}
-          </p>
+          <p className={styles.summary}>{summarize(found)}</p>
           <ESIBadge score={planet.esi} variant="page" />
         </header>
 
@@ -59,7 +72,7 @@ export default async function PlanetPage({ params }: PlanetPageProps) {
           <a className={styles.provenanceLink} href={ARCHIVE_URL} target="_blank" rel="noopener noreferrer">
             NASA Exoplanet Archive
           </a>
-          {describeSync(planet.last_updated)}
+          {describeProvenance(found)}
         </p>
       </article>
     </main>
@@ -108,7 +121,22 @@ function Unknown() {
   );
 }
 
-function describeSync(lastUpdated: string): string {
-  const synced = formatSyncDate(lastUpdated);
-  return synced === null ? '.' : `, synced ${synced}.`;
+function summarize({ planet, removedAt }: FoundPlanet): string {
+  const orbit = planet.hostname ? ` orbiting ${planet.hostname}` : '';
+  return removedAt === null
+    ? `A confirmed exoplanet${orbit}.`
+    : `Formerly listed as a confirmed exoplanet${orbit}.`;
+}
+
+// A retired page must not read as freshly synced: its data stopped at the removal, so date that.
+function describeProvenance({ planet, removedAt }: FoundPlanet): string {
+  if (removedAt === null) {
+    const synced = formatSyncDate(planet.last_updated);
+    return synced === null ? '.' : `, synced ${synced}.`;
+  }
+
+  const removed = formatSyncDate(removedAt);
+  return removed === null
+    ? ', as last recorded before this planet was removed.'
+    : `, as last recorded before this planet was removed on ${removed}.`;
 }

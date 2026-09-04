@@ -2,11 +2,13 @@ import { render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getESIBand } from '@/components/explore/esiBands';
 import type { Planet } from '@/lib/mockPlanets';
+import { planetMetadata } from '@/lib/planetMetadata';
 import PlanetPage, { generateMetadata } from './page';
 
-const { NotFoundSignal, getPlanetDetail } = vi.hoisted(() => ({
+const { NotFoundSignal, getPlanetDetail, getRetiredPlanet } = vi.hoisted(() => ({
   NotFoundSignal: class NotFoundSignal extends Error {},
   getPlanetDetail: vi.fn(),
+  getRetiredPlanet: vi.fn(),
 }));
 
 vi.mock('next/navigation', () => ({
@@ -16,6 +18,7 @@ vi.mock('next/navigation', () => ({
 }));
 
 vi.mock('@/lib/planetDetail', () => ({ getPlanetDetail }));
+vi.mock('@/lib/tombstone', () => ({ getRetiredPlanet }));
 
 const NAME_ONLY: Planet = {
   pl_name: 'HD 000001 b',
@@ -63,6 +66,8 @@ const KEPLER_452B: Planet = {
   esi: 83,
 };
 
+const RETIRED_KEPLER_452B = { planet: KEPLER_452B, removedAt: '2026-09-01T03:00:12' };
+
 async function renderPage(segment: string) {
   render(await PlanetPage({ params: Promise.resolve({ name: segment }) }));
 }
@@ -79,8 +84,17 @@ function comparisonDetail(aspect: string) {
   return statValue('Compared with Earth', aspect);
 }
 
+function retiredNotice() {
+  return screen.getByRole('note', { name: 'Retired planet' });
+}
+
+function provenance() {
+  return screen.getByRole('link', { name: 'NASA Exoplanet Archive' }).parentElement;
+}
+
 beforeEach(() => {
   getPlanetDetail.mockReset();
+  getRetiredPlanet.mockReset();
 });
 
 describe('PlanetPage', () => {
@@ -92,6 +106,19 @@ describe('PlanetPage', () => {
     await renderPage('Kepler-452%20b');
 
     expect(getPlanetDetail).toHaveBeenCalledWith('Kepler-452 b');
+  });
+
+  // The tombstone table is a fallback, not a second read on every planet page.
+  it('never consults the tombstones for a planet the archive still lists', async () => {
+    await renderPage('Kepler-452%20b');
+
+    expect(getRetiredPlanet).not.toHaveBeenCalled();
+  });
+
+  it('shows no retirement notice', async () => {
+    await renderPage('Kepler-452%20b');
+
+    expect(screen.queryByRole('note')).toBeNull();
   });
 
   it('titles the page with the planet and names no other top-level heading', async () => {
@@ -177,7 +204,7 @@ describe('PlanetPage', () => {
 
     const credit = screen.getByRole('link', { name: 'NASA Exoplanet Archive' });
     expect(credit).toHaveAttribute('href', 'https://exoplanetarchive.ipac.caltech.edu/');
-    expect(credit.parentElement).toHaveTextContent('synced August 30, 2026');
+    expect(provenance()).toHaveTextContent('synced August 30, 2026');
   });
 
   it('reads the item once per render', async () => {
@@ -224,13 +251,99 @@ describe('PlanetPage with unmeasured fields', () => {
   });
 });
 
-describe('PlanetPage misses', () => {
-  it('renders the not-found page when the archive has no such planet', async () => {
+describe('PlanetPage for a retired planet', () => {
+  beforeEach(() => {
     getPlanetDetail.mockResolvedValue(null);
+    getRetiredPlanet.mockResolvedValue(RETIRED_KEPLER_452B);
+  });
+
+  it('looks the tombstone up by the decoded name once the live read misses', async () => {
+    await renderPage('Kepler-452%20b');
+
+    expect(getRetiredPlanet).toHaveBeenCalledWith('Kepler-452 b');
+  });
+
+  it('warns above the title that the planet was retired, and when', async () => {
+    await renderPage('Kepler-452%20b');
+
+    const notice = retiredNotice();
+    expect(notice).toHaveTextContent(
+      'Kepler-452 b was removed from the NASA Exoplanet Archive on September 1, 2026'
+    );
+    expect(
+      notice.compareDocumentPosition(screen.getByRole('heading', { level: 1 })) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+  });
+
+  it('says plainly why a planet can be retired', async () => {
+    await renderPage('Kepler-452%20b');
+
+    expect(retiredNotice()).toHaveTextContent(/stellar noise, an instrument artifact, or a duplicate/);
+  });
+
+  it('says the profile below is the last recorded data, not current', async () => {
+    await renderPage('Kepler-452%20b');
+
+    expect(retiredNotice()).toHaveTextContent(
+      'Everything below is the last data recorded before it was removed, not a current measurement.'
+    );
+  });
+
+  it('renders the full profile from the last known snapshot', async () => {
+    await renderPage('Kepler-452%20b');
+
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Kepler-452 b');
+    expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual([
+      'Compared with Earth',
+      'Planet',
+      'Star',
+      'System',
+      'Discovery',
+    ]);
+    expect(statValue('Planet', 'Radius')).toHaveTextContent('1.63 × Earth');
+  });
+
+  it('no longer introduces it as a confirmed exoplanet', async () => {
+    await renderPage('Kepler-452%20b');
+
+    expect(
+      screen.getByText('Formerly listed as a confirmed exoplanet orbiting Kepler-452.')
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/^A confirmed exoplanet/)).toBeNull();
+  });
+
+  it('dates the provenance by the removal instead of claiming a sync', async () => {
+    await renderPage('Kepler-452%20b');
+
+    expect(provenance()).toHaveTextContent(
+      'as last recorded before this planet was removed on September 1, 2026.'
+    );
+    expect(provenance()).not.toHaveTextContent(/synced/);
+  });
+
+  it('reads a corrupt removal stamp as no date rather than Invalid Date', async () => {
+    getRetiredPlanet.mockResolvedValue({ planet: KEPLER_452B, removedAt: 'not-a-date' });
+
+    await renderPage('Kepler-452%20b');
+
+    expect(retiredNotice()).toHaveTextContent(
+      'Kepler-452 b was removed from the NASA Exoplanet Archive and is no longer listed'
+    );
+    expect(provenance()).toHaveTextContent('as last recorded before this planet was removed.');
+    expect(document.body).not.toHaveTextContent(/Invalid Date/);
+  });
+});
+
+describe('PlanetPage misses', () => {
+  it('renders the not-found page when neither the archive nor the tombstones know the name', async () => {
+    getPlanetDetail.mockResolvedValue(null);
+    getRetiredPlanet.mockResolvedValue(null);
 
     await expect(renderPage('Definitely%20Not%20A%20Planet%20b')).rejects.toBeInstanceOf(
       NotFoundSignal
     );
+    expect(getRetiredPlanet).toHaveBeenCalledWith('Definitely Not A Planet b');
   });
 
   it.each(['%ZZ', ''])(
@@ -238,6 +351,7 @@ describe('PlanetPage misses', () => {
     async (segment) => {
       await expect(renderPage(segment)).rejects.toBeInstanceOf(NotFoundSignal);
       expect(getPlanetDetail).not.toHaveBeenCalled();
+      expect(getRetiredPlanet).not.toHaveBeenCalled();
     }
   );
 
@@ -248,6 +362,7 @@ describe('PlanetPage misses', () => {
     await expect(renderPage('Kepler-452%20b')).rejects.toThrow(
       'ProvisionedThroughputExceededException'
     );
+    expect(getRetiredPlanet).not.toHaveBeenCalled();
   });
 });
 
@@ -273,8 +388,42 @@ describe('PlanetPage metadata', () => {
     expect(getPlanetDetail.mock.calls).toEqual([['Kepler-452 b'], ['Kepler-452 b']]);
   });
 
+  it('gives a live planet exactly the metadata it had before tombstones existed', async () => {
+    getPlanetDetail.mockResolvedValue(KEPLER_452B);
+
+    const metadata = await generateMetadata({ params: Promise.resolve({ name: 'Kepler-452%20b' }) });
+
+    expect(metadata).toEqual(planetMetadata(KEPLER_452B));
+    expect(getRetiredPlanet).not.toHaveBeenCalled();
+  });
+
+  it('keeps a retired planet out of the index and says so in the title', async () => {
+    getPlanetDetail.mockResolvedValue(null);
+    getRetiredPlanet.mockResolvedValue(RETIRED_KEPLER_452B);
+
+    const metadata = await generateMetadata({ params: Promise.resolve({ name: 'Kepler-452%20b' }) });
+
+    expect(metadata.title).toBe('Kepler-452 b — Retired Exoplanet | ExoplanetHub');
+    expect(metadata.description).toContain(
+      "removed from NASA's Exoplanet Archive on September 1, 2026"
+    );
+    expect(metadata.robots).toEqual({ index: false, follow: false });
+  });
+
+  it('asks for the same tombstone when titling as when rendering', async () => {
+    getPlanetDetail.mockResolvedValue(null);
+    getRetiredPlanet.mockResolvedValue(RETIRED_KEPLER_452B);
+    const params = Promise.resolve({ name: 'Kepler-452%20b' });
+
+    await generateMetadata({ params });
+    render(await PlanetPage({ params }));
+
+    expect(getRetiredPlanet.mock.calls).toEqual([['Kepler-452 b'], ['Kepler-452 b']]);
+  });
+
   it('describes the 404 for an unstocked name instead of throwing', async () => {
     getPlanetDetail.mockResolvedValue(null);
+    getRetiredPlanet.mockResolvedValue(null);
 
     const metadata = await generateMetadata({
       params: Promise.resolve({ name: 'Definitely%20Not%20A%20Planet%20b' }),
