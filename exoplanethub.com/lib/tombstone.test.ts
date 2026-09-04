@@ -80,6 +80,21 @@ describe('getRetiredPlanet', () => {
     await expect(getRetiredPlanet('Definitely Not A Planet b')).resolves.toBeNull();
   });
 
+  // The page reads planet.pl_name unconditionally, so a snapshot-less item must 404 rather than 500.
+  it('returns null when the tombstone has no snapshot to render', async () => {
+    send.mockResolvedValue({ Item: { pl_name: 'Kepler-452 b', removed_at: '2026-09-01T03:00:12' } });
+    const getRetiredPlanet = await importTombstoneWithCurrentEnv();
+
+    await expect(getRetiredPlanet('Kepler-452 b')).resolves.toBeNull();
+  });
+
+  it('still serves the snapshot when the removal stamp is missing', async () => {
+    send.mockResolvedValue({ Item: { pl_name: 'Kepler-452 b', last_known_snapshot: KEPLER_452B } });
+    const getRetiredPlanet = await importTombstoneWithCurrentEnv();
+
+    await expect(getRetiredPlanet('Kepler-452 b')).resolves.toEqual({ planet: KEPLER_452B, removedAt: '' });
+  });
+
   it('looks the tombstone up by the exact name, spaces and all', async () => {
     send.mockResolvedValue({ Item: TOMBSTONE });
     const getRetiredPlanet = await importTombstoneWithCurrentEnv();
@@ -133,8 +148,19 @@ describe('getRetiredPlanet failure handling', () => {
 
     await expect(getRetiredPlanet('Kepler-452 b')).resolves.toBeNull();
     expect(consoleError).toHaveBeenCalledWith(
-      'Error reading tombstone for Kepler-452 b:',
+      'Error reading tombstone:',
       expect.objectContaining({ message: 'AccessDeniedException' })
     );
+  });
+
+  // The name comes straight off the URL, so it must never reach the log stream raw.
+  it('keeps the requested name out of the log line', async () => {
+    send.mockRejectedValue(new Error('AccessDeniedException'));
+    const getRetiredPlanet = await importTombstoneWithCurrentEnv();
+
+    await getRetiredPlanet('Kepler-452 b\n\nFATAL forged line');
+
+    const logged = consoleError.mock.calls.flat().filter((arg) => typeof arg === 'string');
+    expect(logged.join(' ')).not.toMatch(/Kepler|FATAL|\n/);
   });
 });

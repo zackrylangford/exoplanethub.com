@@ -23,7 +23,7 @@
   margin: 0;
 }
 
-.body + .body {
+.caveat {
   margin-top: 8px;
   font-weight: 600;
 }

@@ -20,7 +20,7 @@ export default function RetiredNotice({ planetName, removedAt }: RetiredNoticePr
         That usually means a closer look found the signal was stellar noise, an instrument artifact,
         or a duplicate of a planet already catalogued.
       </p>
-      <p className={styles.body}>
+      <p className={`${styles.body} ${styles.caveat}`}>
         Everything below is the last data recorded before it was removed, not a current measurement.
       </p>
     </div>

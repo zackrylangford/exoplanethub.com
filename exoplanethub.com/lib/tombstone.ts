@@ -27,10 +27,12 @@ export const getRetiredPlanet = cache(async (planetName: string): Promise<Retire
       })
     );
 
-    const tombstone = Item as StoredTombstone | undefined;
-    return tombstone ? { planet: tombstone.last_known_snapshot, removedAt: tombstone.removed_at } : null;
+    const tombstone = Item as Partial<StoredTombstone> | undefined;
+    return tombstone?.last_known_snapshot
+      ? { planet: tombstone.last_known_snapshot, removedAt: tombstone.removed_at ?? '' }
+      : null;
   } catch (error) {
-    console.error(`Error reading tombstone for ${planetName}:`, error);
+    console.error('Error reading tombstone:', error);
     return null;
   }
 });
