@@ -64,6 +64,7 @@ function mostRecentlyChanged(records: PlanetRecord[]): PlanetRecord[] {
 
 function StripEntry({ record }: { record: PlanetRecord }) {
   const value = record.format(record.holder.value);
+  // `previous` is stored newest-first, so the first entry is the holder this one took the record from.
   const displaced = record.previous.at(0);
 
   return (
@@ -73,14 +74,14 @@ function StripEntry({ record }: { record: PlanetRecord }) {
         <PlanetNameLink name={record.holder.pl_name} />
       </p>
       {value !== null && <p className={styles.value}>{value}</p>}
-      {displaced && <RecordChange displaced={displaced} since={record.since} />}
+      {displaced && <RecordChange displaced={displaced} />}
     </>
   );
 }
 
 // A baseline's `since` is the sync we started watching, so only a displaced holder makes it a change.
-function RecordChange({ displaced, since }: { displaced: DisplacedHolder; since: string }) {
-  const date = formatSyncDate(since);
+function RecordChange({ displaced }: { displaced: DisplacedHolder }) {
+  const date = formatSyncDate(displaced.until);
 
   return (
     <p className={styles.change}>

@@ -37,6 +37,13 @@ const WASP_33B: DisplacedHolder = {
   until: LATER_SYNC,
 };
 
+const KEPLER_13AB: DisplacedHolder = {
+  pl_name: 'Kepler-13 A b',
+  value: 2750,
+  since: '2026-05-01T03:00:00',
+  until: WASP_33B.since,
+};
+
 const EVERY_BASELINE: StoredRecord[] = [
   stored('most-earth-like', 'TRAPPIST-1 e', 0.8342),
   stored('hottest', 'KELT-9 b', 4050),
@@ -85,6 +92,12 @@ describe('RecordsStripList ordering', () => {
     expect(screen.getAllByRole('listitem')).toHaveLength(3);
   });
 
+  it('keeps list semantics explicitly, since the stylesheet strips the markers', async () => {
+    await renderStored(EVERY_BASELINE);
+
+    expect(screen.getByRole('list')).toHaveAttribute('role', 'list');
+  });
+
   it('breaks ties on registry order, not on the order the table returned', async () => {
     await renderStored([...EVERY_BASELINE].reverse());
 
@@ -130,8 +143,32 @@ describe('RecordsStripList entries', () => {
     );
   });
 
+  it('names the most recently displaced holder when the record has fallen more than once', async () => {
+    await renderStored([
+      stored('hottest', 'KELT-9 b', 4050, { since: LATER_SYNC, previous: [WASP_33B, KEPLER_13AB] }),
+    ]);
+
+    const hottest = entry('Hottest');
+    expect(hottest).toHaveTextContent('Took the record from WASP-33 b on September 1, 2026');
+    expect(hottest).not.toHaveTextContent('Kepler-13 A b');
+    expect(within(hottest).getAllByRole('link')).toHaveLength(2);
+  });
+
+  it('dates the change by when the displaced holder lost it, not by the current holder', async () => {
+    await renderStored([
+      stored('hottest', 'KELT-9 b', 4050, { since: 'not a date', previous: [WASP_33B] }),
+    ]);
+
+    expect(entry('Hottest')).toHaveTextContent('Took the record from WASP-33 b on September 1, 2026');
+  });
+
   it('still names the displaced holder when the change date cannot be read', async () => {
-    await renderStored([stored('hottest', 'KELT-9 b', 4050, { since: 'not a date', previous: [WASP_33B] })]);
+    await renderStored([
+      stored('hottest', 'KELT-9 b', 4050, {
+        since: LATER_SYNC,
+        previous: [{ ...WASP_33B, until: 'not a date' }],
+      }),
+    ]);
 
     const hottest = entry('Hottest');
     expect(hottest).toHaveTextContent(/Took the record from WASP-33 b$/);
