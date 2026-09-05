@@ -35,15 +35,21 @@ two `GetItem`s, no backend, no sync change.
 - [ ] `/compare?a=X&b=Y` server-renders both planets; the HTML contains the values. A missing,
       invalid, repeated, or duplicate (`b` equal to `a`) param renders that column empty with a
       picker in its place — a bare `/compare` shows two pickers. Never a 404.
+- [ ] With fewer than two planets resolved there is no table and no verdict: the page shows the two
+      column headers (a resolved column's header, an empty column's picker) and one line inviting
+      the second pick. The comparison only exists once both sides do.
 - [ ] A name that is not in the archive shows, in its column, "We don't have a planet called X"
       plus the picker; a retired planet (tombstone) renders its last snapshot with the same removal
       marker copy the planet page uses. The lookup rule is shared with `/planet/[name]`.
 - [ ] Column order follows the URL (`a` left); a "Swap" link exchanges them; each column header has
-      a "Change" link that clears only that param. Column headers link to the planet pages.
+      a "Change" link that clears only that param. Column headers link to the planet pages and carry
+      the planet's `ESIBadge` (score + band label, opens the ESI explainer) exactly as the planet
+      page header does — the score is stated once on the page, in the site's one ESI voice.
 - [ ] Headline verdict covers all three ESI states: both scored ("X is closer to Earth's conditions
-      than Y — ESI 83 vs 61", or "the same — ESI 61"); one scored ("Only X can be scored: Y has no
-      measured mass"); neither scored, naming each planet's missing input(s). Copy says "closer to
-      Earth's conditions", never "more habitable".
+      than Y", or "X and Y are equally close to Earth's conditions" on equal scores); one scored
+      ("Only X can be scored: Y has no measured mass"); neither scored, naming each planet's missing
+      input(s). The headline itself quotes no numbers — the badges beneath it are the evidence and
+      the route to "what is ESI?". Copy says "closer to Earth's conditions", never "more habitable".
 - [ ] Every numeric row where both values are comparable carries a ratio note beside the larger
       value using that stat's comparative ("1.8× wider", "12× longer year"); a ratio rounding to 1
       reads "About the same". Counts, years and text rows are side by side with no note.
@@ -62,10 +68,16 @@ two `GetItem`s, no backend, no sync change.
 - [ ] Mobile (≤560px): the two value columns stay side by side; the row label moves above the pair;
       no horizontal scroll. Table semantics survive the reflow (the explicit ARIA roles listed
       under Layout, asserted by a test).
-- [ ] Metadata: title "X vs Y — Compare planets", description = the verdict sentence;
-      `robots: noindex` whenever a param is present. `robots.txt` is unchanged (a disallow would
-      stop crawlers from ever fetching the page and seeing the `noindex`). Bare `/compare` stays
-      indexable and is added to the sitemap's static paths.
+- [ ] Metadata follows how many planets resolved (titles take the `| ExoplanetHub` suffix the way
+      `planetMetadata` does). Zero: title "Compare planets", description "Put two confirmed
+      exoplanets side by side — size, mass, temperature, orbit and star — and see which is closer to
+      Earth's conditions". One: title "Compare X with another planet", description "Pick a second
+      planet to compare with X". Two: title "X vs Y — Compare planets", description =
+      `verdict.summary` (the headline plus the scores with their band labels, e.g. "… — ESI 83 ·
+      Highly Earth-like vs ESI 61 · Moderate similarity"). `robots: noindex` whenever any param is
+      present, resolved or not. `robots.txt` is unchanged (a disallow would stop crawlers from ever
+      fetching the page and seeing the `noindex`). Bare `/compare` stays indexable and is added to
+      the sitemap's static paths.
 - [ ] Entry points: planet page header ("Compare with another planet"), `PlanetModal` (beside
       "View full profile"), `PlanetCard`, NavBar "Compare". No third control in the table row.
 - [ ] Keyboard/screen-reader: one `<h1>`, planet names as column headers, stat labels as row
@@ -78,7 +90,13 @@ Frontend only (Next.js 16 App Router). Six decisions:
 (a Promise in Next 16), validates each with the existing `planetNameFromParam` (it already
 tolerates decoded input, so no second validator; a repeated param arrives as an array and counts
 as absent, and `b` equal to `a` counts as absent), and renders dynamically — two `GetItem`s per
-view is cheaper than any cache layer and the page is a tool, not content. The combinatorial URL
+view is cheaper than any cache layer and the page is a tool, not content. The page has exactly two
+shapes: both columns resolved → verdict + table; otherwise → headers/pickers only. Every rule in
+decision 3 is two-sided (the ratio note, the dropped rows, the same-host collapse, the verdict), so
+`comparePlanets(a: Planet, b: Planet)` takes two planets and is simply not called until it has them.
+*Alternative: a one-column table for `/compare?a=X` — rejected: it needs a filler for the empty
+side ("Not measured" already means "the archive lacks this value"), and the full stat table is one
+click away on the planet page the header links to.* The combinatorial URL
 space (~40M pairs) is guarded by per-page `noindex` alone: nothing on the site links to a *pair*
 URL, so crawl volume is bounded by inbound links, and `noindex` is the rule that actually deindexes
 one. *Alternative: also disallow `/compare?*` in `robots.txt` — rejected: a disallowed URL is never
@@ -97,8 +115,16 @@ planet whose own page says "removed on <date>".*
 
 **3. The stat registry is the contract; comparison words live beside it, keyed the same.**
 `planetStatSections()` returns formatted strings only, so a ratio cannot be computed from it. Each
-`PlanetStat` gains `id: StatKey` and `measure: number | null` — the finite number behind `value`,
-`null` for text stats. `StatKey` is the union of the archive column names the registry renders
+`PlanetStat` gains `id: StatKey` and `measure: number | null` — the raw archive column value
+`planet[id]` when finite, in the archive's unit for that column (parsecs for `sy_dist`, kelvin for
+`pl_eqt`), `null` otherwise and for text/derived stats. `measure` is a property of the key, not of
+the render site: `sy_dist` carries parsecs whether `planetKeyStats` rendered it as "12.5 parsecs"
+or the System section as "40.7 light-years (12.5 parsecs)", so a future consumer that thresholds
+or plots it cannot be handed a different unit depending on which function built the stat. The
+test is one line per numeric id — `measure === planet[id]` when finite, else `null`. *Alternative:
+"the number behind the displayed value" — rejected: undecidable for `sy_dist`, whose section string
+holds two numbers, and it would make the unit depend on the caller.* `StatKey` is the union of the
+archive column names the registry renders
 (`pl_rade`, `pl_bmasse`, `pl_dens`, `pl_eqt`, `pl_insol`, `pl_orbper`, `pl_orbsmax`, `hostname`,
 `st_teff`, `st_rad`, `st_mass`, `st_age`, `sy_dist`, `sy_snum`, `sy_pnum`, `disc_year`,
 `discoverymethod`, `disc_facility`) plus `spectral_class` for the one derived stat; ids, not
@@ -111,7 +137,10 @@ two planets' sections by id, emits per row `{ id, label, a: Cell, b: Cell }` wit
 `Cell = { value: string; note: string | null }` ("Not measured" is a value; the ratio note sits on
 the larger side), emits per section `{ id, title, rows, note: string | null }` (`note` carries the
 "neither planet has measured data" and same-host lines; the page never composes copy), and builds
-the ESI verdict. Its comparatives table is `Record<StatKey, string | null>` (wider, heavier, denser,
+the ESI verdict as `{ headline: string; summary: string }` — `headline` is the judgement with no
+numbers in it, `summary` is the headline plus the scores with their band labels, the one text form
+used where a badge cannot render (the metadata description). Its comparatives table is
+`Record<StatKey, string | null>` (wider, heavier, denser,
 hotter, more starlight, longer year, farther from its star, hotter star, larger star, heavier star,
 older star, farther from Earth; `null` for the seven count/year/text ids) — typed off the union so
 adding a stat without deciding its comparative fails typecheck rather than silently rendering a
@@ -154,6 +183,19 @@ slipping through a null check — via a three-entry constant in `planetCompariso
 comment pointing at `compute_esi`. Because both sides apply the same predicate, "no `esi` yet all
 three inputs comparable" cannot occur and no fallback copy exists. *Alternative: port
 `esi_similarity` to TS — rejected: two implementations of the score is exactly what item 5 removed.*
+A score is never stated bare: everywhere the site shows ESI (`ESIBadge`, `PlanetTable`, the share
+card) it is paired with `getESIBand(score).label`, and the badge is the route to the explainer
+(`ESIModal`). So on `/compare` each column header renders the existing `ESIBadge` under the planet
+name, as the planet page header does — score, band, colour and "what is ESI?" in one reused
+component — and `verdict.summary` pairs each score with the same label in text (`ESI 83 · Highly
+Earth-like`, the share card's format). `getESIBand` is pure data with no React in it but lives in
+`components/explore/esiBands.ts`; `lib/` imports nothing from `components/` today, and
+`planetComparison.ts` should not be the first, so `esiBands.ts` (and its test) move to `lib/` with
+their four source importers repointed. *Alternative: quote "ESI 83 vs 61" in the headline —
+rejected: for the curious non-astronomer the band is the part that carries meaning, and a headline
+built on a number with no way to ask what it means is a dead end. Alternative: badges in the
+verdict block rather than the column headers — rejected: the half-filled page has no verdict block
+but does have a resolved column, and one header pattern for both states beats two.*
 
 Layout: a native `<table>` — `<thead>` with the two planet names (sticky), `<th scope="row">`
 labels, one `<tbody>` per section with a `<th colspan="3">` section title — so the label/value
@@ -168,20 +210,23 @@ one file. Risk: `PlanetStat` grows two fields used by the modal/table (`planetKe
 additive, no behaviour change there.
 
 ## Task Breakdown
-1. Registry groundwork: `StatKey` + `id` + `measure` on `PlanetStat`, `amount()` +
-   `isComparable()` exported, `findPlanet` extracted into `planetDetail.ts`, `planetMatcher()`
-   factory replacing `matchesText`; `planetStats`, `earthComparison`, `planetDetail`,
+1. Registry groundwork: `StatKey` + `id` + `measure` on `PlanetStat` (with the `measure ===
+   planet[id]` test per numeric id), `amount()` + `isComparable()` exported, `findPlanet` extracted
+   into `planetDetail.ts`, `planetMatcher()` factory replacing `matchesText`, `esiBands.ts` + test
+   moved to `lib/` with importers repointed; `planetStats`, `earthComparison`, `planetDetail`,
    `planetFilters` tests extended (size: S)
-2. `lib/planetComparison.ts`: `comparePlanets()` — rows, cells, notes, dropped/empty sections,
-   same-host collapse, comparatives table, ESI verdict in all three states — with
-   `planetComparison.test.ts` (size: M)
+2. `lib/planetComparison.ts`: `comparePlanets(a, b)` — rows, cells, notes, dropped/empty sections,
+   same-host collapse, comparatives table, ESI verdict `{ headline, summary }` in all three states
+   with band labels — with `planetComparison.test.ts` (size: M)
 3. `/compare` route shell: `page.tsx` (params incl. repeated/duplicate, `findPlanet` per column,
-   empty/unknown/retired slot states via `EmptySlot.tsx`, Swap/Change links, metadata + `noindex`),
-   `error.tsx`, sitemap static path; `page.test.tsx` covers the four slot states, `error.test.tsx`,
-   `sitemap.test.ts` extended (size: M)
+   the two page shapes — headers/pickers only vs verdict + table — empty/unknown/retired slot
+   states via `EmptySlot.tsx`, column headers with planet link + `ESIBadge` + Change, Swap link,
+   metadata for zero/one/two resolved + `noindex`), `error.tsx`, sitemap static path;
+   `page.test.tsx` covers the four slot states, both shapes and the three metadata cases,
+   `error.test.tsx`, `sitemap.test.ts` extended (size: M)
 4. `ComparisonTable.tsx` + `VerdictHeadline.tsx`: table layout, sticky header, "Not measured"
    cells, ratio notes, section notes, mobile reflow; `ComparisonTable.test.tsx` asserts the full
-   role mapping above and `VerdictHeadline.test.tsx` the three states (size: M)
+   role mapping above and `VerdictHeadline.test.tsx` the three headline states (size: M)
 5. `PlanetPicker` combobox: lazy shared fetch, `planetMatcher` reuse, other-column exclusion,
    suggestions with hints, keyboard pattern (arrows, Enter, Escape, `aria-activedescendant`),
    navigation on select; `PlanetPicker.test.tsx` (size: M)
