@@ -24,7 +24,7 @@ two `GetItem`s, no backend, no sync change.
   (every value is already stated in Earth/Sun units, so Earth is the implicit third column).
 - The planet page's Earth-comparison sentences ("About 1.8 times Earth's width"). On `/compare`
   each row is already in Earth units and carries a ratio note; a third phrasing of the same number
-  is noise, and the planet pages are one click away in the column headers.
+  is noise, and the planet pages are one click away in the column cards.
 - A pending "compare tray" on explore (decision 4 — a link is the affordance; a tray can come later
   without changing the URL contract).
 - Per-comparison link-preview images; text metadata only.
@@ -36,21 +36,22 @@ two `GetItem`s, no backend, no sync change.
       invalid, repeated, or duplicate (`b` equal to `a`) param renders that column empty with a
       picker in its place — a bare `/compare` shows two pickers. Never a 404.
 - [ ] With fewer than two planets resolved there is no table and no verdict: the page shows the two
-      column headers (a resolved column's header, an empty column's picker) and one line inviting
-      the second pick. The comparison only exists once both sides do.
+      column cards (a resolved column's card, an empty column's picker) and one line inviting the
+      second pick. The comparison only exists once both sides do.
 - [ ] A name that is not in the archive shows, in its column, "We don't have a planet called X"
       plus the picker. A retired planet (tombstone) counts as *resolved*: its column renders the
-      last snapshot, and its column header carries a `RetiredMark` — "Retired planet — removed from
-      the archive on 12 March 2026; values are the last recorded" (date via `formatSyncDate`, the
-      "on …" clause dropped when it returns `null`) — so the caveat is read before any value and can
-      stand in both columns at once. The lookup rule is shared with `/planet/[name]`.
-- [ ] Column order follows the URL (`a` left); a "Swap" link exchanges them; each column header has
+      last snapshot, and its column card carries a `RetiredMark` — "Retired planet — removed from
+      the archive on March 12, 2026; values are the last recorded" (date via `formatSyncDate`, whose
+      en-US long form is exactly that; the "on …" clause is dropped when it returns `null`) — so the
+      caveat is read before any value and can stand in both columns at once. The lookup rule is
+      shared with `/planet/[name]`.
+- [ ] Column order follows the URL (`a` left); a "Swap" link exchanges them; each column card has
       a "Change" link that clears only that param. Swap and Change operate on the names as parsed
       from the URL, never on the resolved planets: a valid-but-unknown `b` survives a Swap and shows
       its "We don't have…" column on the left, and a Change on the left leaves it verbatim. Column
-      headers link to the planet pages and carry the planet's `ESIBadge` (score + band label, opens
+      cards link to the planet pages and carry the planet's `ESIBadge` (score + band label, opens
       the ESI explainer) exactly as the planet page header does — the score is stated once on the
-      page, in the site's one ESI voice.
+      page, in the site's one ESI voice. The table's own column headers hold the planet name alone.
 - [ ] Every `/compare` URL the site emits — the four entry points, Swap, Change, and the picker's
       navigation — is built by one `compareUrl(a, b)` in `lib/planetUrl.ts`; a name with a `+`
       (`PSR B1257+12 c`) round-trips through the query string intact, asserted in `planetUrl.test.ts`.
@@ -67,11 +68,13 @@ two `GetItem`s, no backend, no sync change.
 - [ ] A value present for one planet only renders visible "Not measured" (muted) on the other
       side, not a bare dash. Rows where neither has a value are dropped; a section left with no
       rows shows one line saying neither planet has measured data for it.
-- [ ] Two planets of the same host — the registry's "Host star" row value non-null on both sides
-      *and* equal (the registry already renders an empty host as `null`, so two planets that merely
-      both lack a host name are unrelated and keep every row) — collapse the Star and System
-      sections into one line, "Both orbit TRAPPIST-1 — same star, same system, 40.7 light-years
-      away", instead of six rows of "About the same". The distance clause is
+- [ ] Two planets of the same host — the `hostname` stat's `value` in `planetStatSections(a)` and
+      `planetStatSections(b)` (a `string | null`; the registry already renders an empty host as
+      `null`) non-null on both sides *and* equal, so two planets that merely both lack a host name
+      are unrelated and keep every row — collapse the Star and System sections into one line, "Both
+      orbit TRAPPIST-1 — same star, same system, 40.7 light-years away", instead of nine rows of
+      the same star. The output shape is fixed: the Star section is emitted with `rows: []` and that
+      line as its `note`; the System section is not emitted at all. The distance clause is
       `lightYearsAway(a.sy_dist) ?? lightYearsAway(b.sy_dist)`, the exported formatter the planet
       highlights use, and is omitted when that is `null` (the line ends at "same system").
 - [ ] Every number and unit on `/compare` comes from the same formatters as `/planet/[name]` —
@@ -95,9 +98,11 @@ two `GetItem`s, no backend, no sync change.
       the sitemap's static paths.
 - [ ] Entry points: planet page header ("Compare with another planet"), `PlanetModal` (beside
       "View full profile"), `PlanetCard`, NavBar "Compare". No third control in the table row.
-- [ ] Keyboard/screen-reader: one `<h1>` reading "Compare planets" in every state (the planet names
-      belong to the column headers, not the heading, so they are announced once), stat labels as
-      row headers, verdict readable before the table.
+- [ ] Keyboard/screen-reader: one `<h1>` reading "Compare planets" in every state; each resolved
+      column card is an `<h2>` holding the planet-page link, so the outline is the page then its two
+      planets; the table's column headers name the planets and nothing else, so crossing a column
+      announces a name, not a badge and two controls; stat labels as row headers; verdict readable
+      before the table.
 
 ## Technical Approach
 Frontend only (Next.js 16 App Router). Six decisions:
@@ -152,10 +157,15 @@ keys on these objects). `planetKeyStats` reuses the same ids for its six entries
 two planets' sections by id, emits per row `{ id, label, a: Cell, b: Cell }` with
 `Cell = { value: string; note: string | null }` ("Not measured" is a value; the ratio note sits on
 the larger side), emits per section `{ id, title, rows, note: string | null }` (`note` carries the
-"neither planet has measured data" and same-host lines; the page never composes copy — and the
-same-host test is the two `hostname` rows' *values* both non-null and equal: the registry's private
-`text()` has already turned an empty host into `null`, so the rule is inherited from the row, not
-re-implemented, and two null hosts never match as a bare `===` would let them), and builds
+"neither planet has measured data" and same-host lines; the page never composes copy). The
+same-host test runs on the registry, not on cells: the `hostname` `PlanetStat.value` (`string |
+null`) from each planet's sections, both non-null and equal — the registry's private `text()` has
+already turned an empty host into `null`, so the rule is inherited from the stat, not
+re-implemented, and two null hosts never match as a bare `===` would let them. A `Cell.value` is
+never null ("Not measured" is a value), which is why the test cannot live there. The collapse is
+decided before rows are built: the Star section is emitted with `rows: []` and the collapse line as
+its `note`, the System section is not emitted, and a collapsed section never also qualifies for the
+"neither planet has measured data" note. `comparePlanets` then builds
 the ESI verdict as `{ headline: string; summary: string }` — `headline` is the judgement with no
 numbers in it, `summary` is the headline plus the scores with their band labels, the one text form
 used where a badge cannot render (the metadata description). Its comparatives table is
@@ -218,7 +228,7 @@ three inputs comparable" cannot occur and no fallback copy exists. *Alternative:
 `esi_similarity` to TS — rejected: two implementations of the score is exactly what item 5 removed.*
 A score is never stated bare: everywhere the site shows ESI (`ESIBadge`, `PlanetTable`, the share
 card) it is paired with `getESIBand(score).label`, and the badge is the route to the explainer
-(`ESIModal`). So on `/compare` each column header renders the existing `ESIBadge` under the planet
+(`ESIModal`). So on `/compare` each column card renders the existing `ESIBadge` under the planet
 name, as the planet page header does — score, band, colour and "what is ESI?" in one reused
 component — and `verdict.summary` pairs each score with the same label in text (`ESI 83 · Good
 similarity`, the share card's format). `getESIBand` is pure data with no React in it but lives in
@@ -227,36 +237,46 @@ similarity`, the share card's format). `getESIBand` is pure data with no React i
 their four source importers repointed. *Alternative: quote "ESI 83 vs 61" in the headline —
 rejected: for the curious non-astronomer the band is the part that carries meaning, and a headline
 built on a number with no way to ask what it means is a dead end. Alternative: badges in the
-verdict block rather than the column headers — rejected: the half-filled page has no verdict block
-but does have a resolved column, and one header pattern for both states beats two.*
+verdict block rather than the column cards — rejected: the half-filled page has no verdict block
+but does have a resolved column, and one card pattern for both states beats two.*
 
-Layout: a native `<table>` three columns wide — `<thead>` (sticky) whose row opens with a
+Layout: the page is `<h1>`, then (both resolved) the verdict, then a two-column strip of column
+cards, then the table; the half-filled shape is `<h1>`, the strip, the invite line. The strip is
+where a column's identity lives in both shapes: `ColumnCard` owns a `<div>` holding an `<h2>` with
+the planet-page link, the `ESIBadge`, `RetiredMark` when the column is a tombstone, and Change;
+`EmptySlot` owns the `<div>` for the two unresolved states (picker alone; "We don't have a planet
+called X" + picker) and has no heading — its picker's label names it. The strip renders the same
+way whether or not a table follows, so the retired caveat is read before any value, and the badges
+sit directly beneath the headline they justify. The table is a
+native `<table>` three columns wide — `<thead>` (sticky, one line tall) whose row opens with a
 label-column `<th>` carrying visually-hidden text "Stat" (so the corner is not announced as a blank
-header) followed by the two planet headers; `<th scope="row">` labels; one `<tbody>` per section
-with a `<th colspan="3">` section title — so the label/value relationship is native to AT. The
-mobile reflow uses grid on the row, which strips table semantics in Chrome/Safari, so every element
+header) followed by two `<th scope="col">` holding *only* the planet-name link; `<th scope="row">`
+labels; one `<tbody>` per section with a `<th colspan="3">` section title — so the label/value
+relationship is native to AT. A column header's accessible name is its contents, and screen
+readers re-announce it every time the reading position crosses a column, which in a row-by-row
+read is twice per row: with the badge, caveat and Change inside the `<th>` that is ~30 words
+including two controls' labels, spoken ~40 times down the table. Names only keeps it to a name.
+*Alternative: the whole identity block inside the `<th>`, `ColumnCard` owning no element so it can
+render in a `<tr>` and in a `<div>` — rejected for exactly that header bloat; `PlanetTable`'s own
+precedent is the score in the `<td>` and one short info button in the ESI header.* The mobile
+reflow uses grid on the row, which strips table semantics in Chrome/Safari, so every element
 carries an explicit role: `<table>` → `table`; `<thead>` and each `<tbody>` → `rowgroup`; `<tr>` →
 `row`; label-column and planet-name `<th>` → `columnheader`; stat-label `<th>` → `rowheader`;
 value `<td>` → `cell`; section-title `<th colspan="3">` → `rowheader` with `aria-colspan="3"` (once
-roles are explicit, native `scope`/`colspan` no longer carry). The route ships as `page.tsx` +
-`ColumnHeader.tsx` + `RetiredMark.tsx` + `EmptySlot.tsx` + `ComparisonTable.tsx` +
+roles are explicit, native `scope`/`colspan` no longer carry). The visually-hidden "Stat" text uses
+a `.visuallyHidden` class in `ComparisonTable.module.css` — the site keeps that rule per module
+(`planet/[name]/page.module.css`, `PlanetTable.module.css`, and `ResultsCount`'s `.announcement`),
+not as a global utility, and this route follows suit. The route ships as `page.tsx` +
+`ColumnCard.tsx` + `RetiredMark.tsx` + `EmptySlot.tsx` + `ComparisonTable.tsx` +
 `VerdictHeadline.tsx` + `PlanetPicker.tsx` in `app/compare/`, following the planet route's
-co-located pieces, rather than one file. `ColumnHeader` renders a resolved column's head *contents*
-only — planet link, `ESIBadge`, `RetiredMark` when the column is a tombstone, Change — and owns no
-element, because its two hosts need different ones: `ComparisonTable` wraps it in `<th scope="col"
-role="columnheader">` (a component that owned a `<th>` would be dropped by the parser outside a
-table; one that owned a `<div>` would be foster-parented out of `<tr>`), and the half-filled shape
-wraps each column — `ColumnHeader` or `EmptySlot` — in a plain `<div>`. `EmptySlot` covers the two
-unresolved states (picker alone; "We don't have a planet called X" + picker) and appears only in
-the half-filled shape, since the table exists only once both columns resolve. `RetiredMark` is the
-column-shaped removal caveat with no DOM id, so two retired columns cannot collide. *Alternative:
-reuse the planet page's `RetiredNotice` — rejected: its copy ("Everything below is the last data
-recorded") is page-shaped, it hardcodes `id="retired-notice-label"` for its `aria-labelledby` so a
-second instance binds to the wrong node, and its CSS module belongs to the planet route; only
-`formatSyncDate` is shared.* `page.tsx` is left with params and the shape choice. The `<h1>` is the
-static "Compare planets" in every state, matching the site's per-route heading convention. Risk:
-`PlanetStat` grows two fields used by the modal/table (`planetKeyStats`) — additive, no behaviour
-change there.
+co-located pieces, rather than one file. `RetiredMark` is the column-shaped removal caveat with no
+DOM id, so two retired columns cannot collide. *Alternative: reuse the planet page's
+`RetiredNotice` — rejected: its copy ("Everything below is the last data recorded") is page-shaped,
+it hardcodes `id="retired-notice-label"` for its `aria-labelledby` so a second instance binds to
+the wrong node, and its CSS module belongs to the planet route; only `formatSyncDate` is shared.*
+`page.tsx` is left with params and the shape choice. The `<h1>` is the static "Compare planets" in
+every state, matching the site's per-route heading convention. Risk: `PlanetStat` grows two fields
+used by the modal/table (`planetKeyStats`) — additive, no behaviour change there.
 
 ## Task Breakdown
 1. Registry groundwork: `StatKey` + `id` + `measure` on `PlanetStat` (with the `measure ===
@@ -267,23 +287,26 @@ change there.
    files); `planetStats`, `earthComparison`, `planetDetail`, `planetFilters`, `planetUrl` tests
    extended. Many files, no new behaviour — but ~20 of them (size: M)
 2. `lib/planetComparison.ts`: `comparePlanets(a, b)` — rows, cells, notes, dropped/empty sections,
-   same-host collapse (`hostname` row values non-null and equal; distance clause via
+   same-host collapse (registry `hostname` stat values non-null and equal → Star section with
+   `rows: []` and the line as `note`, System section omitted; distance clause via
    `lightYearsAway`, omitted when null), comparatives table, ESI
    verdict `{ headline, summary }` in all three states with band labels, ties only on identical
    scores — with `planetComparison.test.ts` (size: M)
 3. `/compare` route shell: `page.tsx` (params incl. repeated/duplicate, `findPlanet` per column,
-   the two page shapes — headers/pickers only vs verdict + table — static `<h1>`, metadata for
-   zero/one/two resolved + `noindex`), `ColumnHeader.tsx` (contents only: planet link + `ESIBadge`
-   + `RetiredMark` + Change via `compareUrl`), `RetiredMark.tsx` (column-shaped caveat via
-   `formatSyncDate`, no DOM id), `EmptySlot.tsx` (empty/unknown states), Swap link — Swap and
+   the two page shapes — cards/pickers only vs verdict + cards + table — static `<h1>`, metadata
+   for zero/one/two resolved + `noindex`), `ColumnCard.tsx` (`<div>` with `<h2>` planet link +
+   `ESIBadge` + `RetiredMark` + Change via `compareUrl`), `RetiredMark.tsx` (column-shaped caveat
+   via `formatSyncDate`, no DOM id), `EmptySlot.tsx` (empty/unknown states), Swap link — Swap and
    Change over the parsed names, not the resolved planets — `error.tsx`, sitemap static path;
    `page.test.tsx` covers the four column states (empty, unknown, live, retired), both shapes, the
-   three metadata cases, and that Swap keeps an unknown name; `ColumnHeader.test.tsx`,
-   `RetiredMark.test.tsx` (with and without a parseable date), `error.test.tsx`, `sitemap.test.ts`
-   extended (size: M)
-4. `ComparisonTable.tsx` + `VerdictHeadline.tsx`: table layout, `<th scope="col">` wrapping each
-   `ColumnHeader`, label-column header, sticky header, "Not measured" cells, ratio notes, section
-   notes, mobile reflow; `ComparisonTable.test.tsx` asserts the full role mapping above and
+   three metadata cases, and that Swap keeps an unknown name; `ColumnCard.test.tsx`,
+   `RetiredMark.test.tsx` (with and without a parseable date, asserting the `March 12, 2026` form),
+   `error.test.tsx`, `sitemap.test.ts` extended (size: M)
+4. `ComparisonTable.tsx` + `VerdictHeadline.tsx`: table layout, `<th scope="col">` holding the
+   planet-name link only, label-column header with the module's own `.visuallyHidden`, sticky
+   header, "Not measured" cells, ratio notes, section notes (including a collapsed Star section
+   rendering as heading + note with no rows), mobile reflow; `ComparisonTable.test.tsx` asserts the
+   full role mapping above and that each column header's accessible name is the planet name;
    `VerdictHeadline.test.tsx` the three headline states (size: M)
 5. `PlanetPicker` combobox: lazy shared fetch, `planetMatcher` reuse, other-column exclusion,
    suggestions with hints, keyboard pattern (arrows, Enter, Escape, `aria-activedescendant`),
