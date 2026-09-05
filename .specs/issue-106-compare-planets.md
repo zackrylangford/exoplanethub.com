@@ -95,8 +95,10 @@ the Earth-comparison sentences. Its comparatives table is `Record<StatKey, strin
 (wider, heavier, denser, hotter, more starlight, longer year, farther from its star, hotter star,
 larger star, heavier star, older star, farther from Earth; `null` for counts, year, text) — typed
 off the union so adding a stat without deciding its comparative fails typecheck rather than
-silently rendering a bare ratio. Ratio rounding reuses `earthComparison`'s two-significant-digit
-rule (export it) so "1.8×" and "About 12 times Earth's width" speak the same voice.
+silently rendering a bare ratio. Ratio rounding reuses `earthComparison.ts`'s `amount()` (two
+significant digits below 10, whole numbers from 10 up — the rule that keeps a 267-day orbit from
+reading 270) and its `isComparable()` guard (finite and positive, else unmeasured); both are
+exported, not reimplemented, so "1.8×" and "About 12 times Earth's width" speak the same voice.
 `earthComparisons()` gains an unfiltered form returning all five aspects with `detail | null` so a
 row can show "Not measured" on one side; the planet page keeps dropping nulls. The page component
 is then a renderer of rows and cells and holds no comparison logic. *Alternative: a separate
@@ -114,7 +116,7 @@ the list, a tray can be added without touching the `/compare` contract.*
 
 **5. Picker reuses `/api/planets`, lazily.** `PlanetPicker` (client, one per empty column) fetches
 the CDN-cached summary list only on first focus, shares one in-flight promise across pickers,
-filters with the search predicate exported from `planetFilters.ts` (no second matcher), shows ≤8
+filters with `matchesText()` exported from `planetFilters.ts` (today private; no second matcher), shows ≤8
 suggestions with radius/ESI as hints, and `router.push`es the completed URL. *Alternative: a
 names-only `/api/planets/names` endpoint — rejected: a second hourly Scan surface for a modest byte
 saving, and it loses the hint stats. Alternative: no picker, links only — rejected: a shared
@@ -136,8 +138,8 @@ behaviour change there.
 
 ## Task Breakdown
 1. Registry groundwork: `StatKey` + `measure` on `PlanetStat`, unfiltered `earthComparisons`,
-   exported ratio rounding, `findPlanet` extracted into `planetDetail.ts`, explore search predicate
-   exported; existing tests extended (size: S)
+   `amount()` + `isComparable()` exported, `findPlanet` extracted into `planetDetail.ts`,
+   `matchesText()` exported; existing tests extended (size: S)
 2. `lib/planetComparison.ts`: `comparePlanets()` — rows, cells, notes, dropped/empty sections,
    comparatives table, ESI verdict in all three states — with tests (size: M)
 3. `/compare` route: page, table layout with sticky header and mobile reflow, verdict, empty/miss/
