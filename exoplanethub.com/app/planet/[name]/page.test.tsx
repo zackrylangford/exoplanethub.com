@@ -1,6 +1,6 @@
 import { render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { getESIBand } from '@/components/explore/esiBands';
+import { getESIBand } from '@/lib/esiBands';
 import type { Planet } from '@/lib/mockPlanets';
 import { planetMetadata } from '@/lib/planetMetadata';
 import PlanetPage, { generateMetadata } from './page';

@@ -1,4 +1,4 @@
-import { getESIBand } from '@/components/explore/esiBands';
+import { getESIBand } from '@/lib/esiBands';
 import type { Planet } from '@/lib/mockPlanets';
 import { discoveredIn, lightYearsAway } from '@/lib/planetStats';
 import { getTheme, SITE_THEME } from '@/lib/theme';

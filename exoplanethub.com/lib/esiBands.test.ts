@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ESI_BANDS, getESIBand } from '@/components/explore/esiBands';
+import { ESI_BANDS, getESIBand } from '@/lib/esiBands';
 import { generateCSSVariables } from '@/lib/theme';
 
 describe('ESI_BANDS', () => {

@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import ESIModal from './ESIModal';
-import { getESIBand } from './esiBands';
+import { getESIBand } from '@/lib/esiBands';
 import styles from './ESIBadge.module.css';
 
 interface ESIBadgeProps {
