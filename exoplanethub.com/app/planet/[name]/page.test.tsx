@@ -1,14 +1,13 @@
 import { render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { getESIBand } from '@/components/explore/esiBands';
+import { getESIBand } from '@/lib/esiBands';
 import type { Planet } from '@/lib/mockPlanets';
 import { planetMetadata } from '@/lib/planetMetadata';
 import PlanetPage, { generateMetadata } from './page';
 
-const { NotFoundSignal, getPlanetDetail, getRetiredPlanet } = vi.hoisted(() => ({
+const { NotFoundSignal, findPlanet } = vi.hoisted(() => ({
   NotFoundSignal: class NotFoundSignal extends Error {},
-  getPlanetDetail: vi.fn(),
-  getRetiredPlanet: vi.fn(),
+  findPlanet: vi.fn(),
 }));
 
 vi.mock('next/navigation', () => ({
@@ -17,8 +16,7 @@ vi.mock('next/navigation', () => ({
   },
 }));
 
-vi.mock('@/lib/planetDetail', () => ({ getPlanetDetail }));
-vi.mock('@/lib/tombstone', () => ({ getRetiredPlanet }));
+vi.mock('@/lib/planetDetail', () => ({ findPlanet }));
 
 const NAME_ONLY: Planet = {
   pl_name: 'HD 000001 b',
@@ -66,6 +64,8 @@ const KEPLER_452B: Planet = {
   esi: 83,
 };
 
+const LIVE_KEPLER_452B = { planet: KEPLER_452B, removedAt: null };
+const LIVE_NAME_ONLY = { planet: NAME_ONLY, removedAt: null };
 const RETIRED_KEPLER_452B = { planet: KEPLER_452B, removedAt: '2026-09-01T03:00:12' };
 
 async function renderPage(segment: string) {
@@ -93,26 +93,18 @@ function provenance() {
 }
 
 beforeEach(() => {
-  getPlanetDetail.mockReset();
-  getRetiredPlanet.mockReset();
+  findPlanet.mockReset();
 });
 
 describe('PlanetPage', () => {
   beforeEach(() => {
-    getPlanetDetail.mockResolvedValue(KEPLER_452B);
+    findPlanet.mockResolvedValue(LIVE_KEPLER_452B);
   });
 
   it('looks the planet up by the decoded name, not the URL segment', async () => {
     await renderPage('Kepler-452%20b');
 
-    expect(getPlanetDetail).toHaveBeenCalledWith('Kepler-452 b');
-  });
-
-  // The tombstone table is a fallback, not a second read on every planet page.
-  it('never consults the tombstones for a planet the archive still lists', async () => {
-    await renderPage('Kepler-452%20b');
-
-    expect(getRetiredPlanet).not.toHaveBeenCalled();
+    expect(findPlanet).toHaveBeenCalledWith('Kepler-452 b');
   });
 
   it('shows no retirement notice', async () => {
@@ -207,16 +199,16 @@ describe('PlanetPage', () => {
     expect(provenance()).toHaveTextContent('synced August 30, 2026');
   });
 
-  it('reads the item once per render', async () => {
+  it('looks the planet up once per render', async () => {
     await renderPage('Kepler-452%20b');
 
-    expect(getPlanetDetail).toHaveBeenCalledTimes(1);
+    expect(findPlanet).toHaveBeenCalledTimes(1);
   });
 });
 
 describe('PlanetPage with unmeasured fields', () => {
   beforeEach(() => {
-    getPlanetDetail.mockResolvedValue(NAME_ONLY);
+    findPlanet.mockResolvedValue(LIVE_NAME_ONLY);
   });
 
   it('still renders every row, marked unknown rather than collapsed', async () => {
@@ -253,14 +245,7 @@ describe('PlanetPage with unmeasured fields', () => {
 
 describe('PlanetPage for a retired planet', () => {
   beforeEach(() => {
-    getPlanetDetail.mockResolvedValue(null);
-    getRetiredPlanet.mockResolvedValue(RETIRED_KEPLER_452B);
-  });
-
-  it('looks the tombstone up by the decoded name once the live read misses', async () => {
-    await renderPage('Kepler-452%20b');
-
-    expect(getRetiredPlanet).toHaveBeenCalledWith('Kepler-452 b');
+    findPlanet.mockResolvedValue(RETIRED_KEPLER_452B);
   });
 
   it('warns above the title that the planet was retired, and when', async () => {
@@ -323,7 +308,7 @@ describe('PlanetPage for a retired planet', () => {
   });
 
   it('reads a corrupt removal stamp as no date rather than Invalid Date', async () => {
-    getRetiredPlanet.mockResolvedValue({ planet: KEPLER_452B, removedAt: 'not-a-date' });
+    findPlanet.mockResolvedValue({ planet: KEPLER_452B, removedAt: 'not-a-date' });
 
     await renderPage('Kepler-452%20b');
 
@@ -336,39 +321,36 @@ describe('PlanetPage for a retired planet', () => {
 });
 
 describe('PlanetPage misses', () => {
-  it('renders the not-found page when neither the archive nor the tombstones know the name', async () => {
-    getPlanetDetail.mockResolvedValue(null);
-    getRetiredPlanet.mockResolvedValue(null);
+  it('renders the not-found page when the lookup knows nothing by that name', async () => {
+    findPlanet.mockResolvedValue(null);
 
     await expect(renderPage('Definitely%20Not%20A%20Planet%20b')).rejects.toBeInstanceOf(
       NotFoundSignal
     );
-    expect(getRetiredPlanet).toHaveBeenCalledWith('Definitely Not A Planet b');
+    expect(findPlanet).toHaveBeenCalledWith('Definitely Not A Planet b');
   });
 
   it.each(['%ZZ', ''])(
-    'renders the not-found page for the malformed segment "%s" without reading the table',
+    'renders the not-found page for the malformed segment "%s" without a lookup',
     async (segment) => {
       await expect(renderPage(segment)).rejects.toBeInstanceOf(NotFoundSignal);
-      expect(getPlanetDetail).not.toHaveBeenCalled();
-      expect(getRetiredPlanet).not.toHaveBeenCalled();
+      expect(findPlanet).not.toHaveBeenCalled();
     }
   );
 
   // A throttled or broken read is not a missing planet; a cached 404 would outlive the outage.
   it('lets a read failure surface instead of cacheing it as a 404', async () => {
-    getPlanetDetail.mockRejectedValue(new Error('ProvisionedThroughputExceededException'));
+    findPlanet.mockRejectedValue(new Error('ProvisionedThroughputExceededException'));
 
     await expect(renderPage('Kepler-452%20b')).rejects.toThrow(
       'ProvisionedThroughputExceededException'
     );
-    expect(getRetiredPlanet).not.toHaveBeenCalled();
   });
 });
 
 describe('PlanetPage metadata', () => {
   it('titles and describes the planet rather than inheriting the site defaults', async () => {
-    getPlanetDetail.mockResolvedValue(KEPLER_452B);
+    findPlanet.mockResolvedValue(LIVE_KEPLER_452B);
 
     const metadata = await generateMetadata({ params: Promise.resolve({ name: 'Kepler-452%20b' }) });
 
@@ -379,27 +361,25 @@ describe('PlanetPage metadata', () => {
   // Both entry points resolve to the same key, which is what lets planetDetail's cache() serve
   // the title and the body from one GetItem.
   it('asks for the same planet when titling as when rendering', async () => {
-    getPlanetDetail.mockResolvedValue(KEPLER_452B);
+    findPlanet.mockResolvedValue(LIVE_KEPLER_452B);
     const params = Promise.resolve({ name: 'Kepler-452%20b' });
 
     await generateMetadata({ params });
     render(await PlanetPage({ params }));
 
-    expect(getPlanetDetail.mock.calls).toEqual([['Kepler-452 b'], ['Kepler-452 b']]);
+    expect(findPlanet.mock.calls).toEqual([['Kepler-452 b'], ['Kepler-452 b']]);
   });
 
   it('gives a live planet exactly the metadata it had before tombstones existed', async () => {
-    getPlanetDetail.mockResolvedValue(KEPLER_452B);
+    findPlanet.mockResolvedValue(LIVE_KEPLER_452B);
 
     const metadata = await generateMetadata({ params: Promise.resolve({ name: 'Kepler-452%20b' }) });
 
     expect(metadata).toEqual(planetMetadata(KEPLER_452B));
-    expect(getRetiredPlanet).not.toHaveBeenCalled();
   });
 
   it('keeps a retired planet out of the index and says so in the title', async () => {
-    getPlanetDetail.mockResolvedValue(null);
-    getRetiredPlanet.mockResolvedValue(RETIRED_KEPLER_452B);
+    findPlanet.mockResolvedValue(RETIRED_KEPLER_452B);
 
     const metadata = await generateMetadata({ params: Promise.resolve({ name: 'Kepler-452%20b' }) });
 
@@ -410,20 +390,8 @@ describe('PlanetPage metadata', () => {
     expect(metadata.robots).toEqual({ index: false, follow: false });
   });
 
-  it('asks for the same tombstone when titling as when rendering', async () => {
-    getPlanetDetail.mockResolvedValue(null);
-    getRetiredPlanet.mockResolvedValue(RETIRED_KEPLER_452B);
-    const params = Promise.resolve({ name: 'Kepler-452%20b' });
-
-    await generateMetadata({ params });
-    render(await PlanetPage({ params }));
-
-    expect(getRetiredPlanet.mock.calls).toEqual([['Kepler-452 b'], ['Kepler-452 b']]);
-  });
-
   it('describes the 404 for an unstocked name instead of throwing', async () => {
-    getPlanetDetail.mockResolvedValue(null);
-    getRetiredPlanet.mockResolvedValue(null);
+    findPlanet.mockResolvedValue(null);
 
     const metadata = await generateMetadata({
       params: Promise.resolve({ name: 'Definitely%20Not%20A%20Planet%20b' }),
@@ -433,10 +401,10 @@ describe('PlanetPage metadata', () => {
     expect(metadata.robots).toMatchObject({ index: false });
   });
 
-  it('describes the 404 for a malformed segment without reading the table', async () => {
+  it('describes the 404 for a malformed segment without a lookup', async () => {
     const metadata = await generateMetadata({ params: Promise.resolve({ name: '%ZZ' }) });
 
     expect(metadata.title).toBe('Planet not found | ExoplanetHub');
-    expect(getPlanetDetail).not.toHaveBeenCalled();
+    expect(findPlanet).not.toHaveBeenCalled();
   });
 });

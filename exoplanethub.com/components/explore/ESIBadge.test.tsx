@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import ESIBadge from '@/components/explore/ESIBadge';
-import { getESIBand } from '@/components/explore/esiBands';
+import { getESIBand } from '@/lib/esiBands';
 
 const SCORE = 72;
 const BAND_LABEL = getESIBand(SCORE).label;

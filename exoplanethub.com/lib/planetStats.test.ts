@@ -5,6 +5,7 @@ import {
   planetKeyStats,
   planetStatSections,
   type PlanetStat,
+  type StatKey,
 } from '@/lib/planetStats';
 
 const UNMEASURED: Planet = {
@@ -41,6 +42,30 @@ function valueOf(label: string, planet: Partial<Planet>): string | null {
   return stat.value;
 }
 
+function statOf(id: StatKey, planet: Partial<Planet>): PlanetStat {
+  const stat = statsOf(planet).find((candidate) => candidate.id === id);
+  if (!stat) throw new Error(`No stat with id "${id}"`);
+  return stat;
+}
+
+const NUMERIC_IDS = [
+  'pl_rade',
+  'pl_bmasse',
+  'pl_dens',
+  'pl_eqt',
+  'pl_insol',
+  'pl_orbper',
+  'pl_orbsmax',
+  'st_teff',
+  'st_rad',
+  'st_mass',
+  'st_age',
+  'sy_dist',
+  'sy_snum',
+  'sy_pnum',
+  'disc_year',
+] as const;
+
 describe('planetStatSections structure', () => {
   it('groups the archive fields into Planet, Star, System and Discovery, in that order', () => {
     expect(planetStatSections(UNMEASURED).map((section) => section.title)).toEqual([
@@ -69,6 +94,91 @@ describe('planetStatSections structure', () => {
     const values = statsOf({ st_logg: 4.32 }).map((stat) => stat.value);
 
     expect(values.some((value) => value?.includes('4.32'))).toBe(false);
+  });
+});
+
+describe('planetStatSections ids', () => {
+  it('keys every stat on the archive column it renders, in section order', () => {
+    expect(statsOf({}).map((stat) => stat.id)).toEqual([
+      'pl_rade',
+      'pl_bmasse',
+      'pl_dens',
+      'pl_eqt',
+      'pl_insol',
+      'pl_orbper',
+      'pl_orbsmax',
+      'hostname',
+      'spectral_class',
+      'st_teff',
+      'st_rad',
+      'st_mass',
+      'st_age',
+      'sy_dist',
+      'sy_snum',
+      'sy_pnum',
+      'disc_year',
+      'discoverymethod',
+      'disc_facility',
+    ]);
+  });
+});
+
+describe('planetStatSections measures', () => {
+  // The measure is the stored column itself, never a converted or rounded copy of it.
+  it.each(NUMERIC_IDS)('carries %s as stored when it is finite', (id) => {
+    const planet: Planet = { ...UNMEASURED, [id]: 551.7 };
+
+    expect(statOf(id, planet).measure).toBe(planet[id]);
+  });
+
+  it.each(NUMERIC_IDS)('carries no measure for %s when the archive left it unmeasured', (id) => {
+    expect(statOf(id, {}).measure).toBeNull();
+  });
+
+  it.each([
+    ['NaN', NaN],
+    ['Infinity', Infinity],
+  ])('carries no measure for a %s column rather than a number nothing can compare', (_case, corrupt) => {
+    for (const id of NUMERIC_IDS) {
+      expect(statOf(id, { [id]: corrupt }).measure).toBeNull();
+    }
+  });
+
+  it('keeps a measured zero as a measure, which a falsy check would have dropped', () => {
+    expect(statOf('pl_insol', { pl_insol: 0 }).measure).toBe(0);
+  });
+
+  it('shows a value on a numeric stat exactly when it carries a measure', () => {
+    const planet = { pl_rade: 1.63, sy_dist: 551.7, disc_year: 2015, st_teff: NaN };
+
+    for (const id of NUMERIC_IDS) {
+      const stat = statOf(id, planet);
+      expect(stat.value === null).toBe(stat.measure === null);
+    }
+  });
+
+  // The section shows light-years first, but the measure stays in the archive's own unit.
+  it('keeps distance in parsecs even where the value leads with light-years', () => {
+    const stat = statOf('sy_dist', { sy_dist: 551.7 });
+
+    expect(stat.value).toBe('1,799 light-years (551.7 parsecs)');
+    expect(stat.measure).toBe(551.7);
+  });
+
+  it.each([
+    ['hostname', { hostname: 'Kepler-452' }],
+    ['discoverymethod', { discoverymethod: 'Transit' }],
+    ['disc_facility', { disc_facility: 'Kepler' }],
+  ] as const)('carries no measure for the text stat %s', (id, planet) => {
+    expect(statOf(id, planet).value).not.toBeNull();
+    expect(statOf(id, planet).measure).toBeNull();
+  });
+
+  it('carries no measure for the derived spectral class, though a number stands behind it', () => {
+    const stat = statOf('spectral_class', { st_teff: 5757 });
+
+    expect(stat.value).toBe('G — sun-like');
+    expect(stat.measure).toBeNull();
   });
 });
 
@@ -239,6 +349,25 @@ describe('planetKeyStats', () => {
 
   it('reports every field of a name-only planet as unknown', () => {
     expect(planetKeyStats(UNMEASURED).every((stat) => stat.value === null)).toBe(true);
+  });
+
+  it('keys its six fields on the same columns the page sections use', () => {
+    expect(planetKeyStats(QUICK_LOOK).map((stat) => stat.id)).toEqual([
+      'sy_dist',
+      'pl_rade',
+      'pl_bmasse',
+      'pl_eqt',
+      'disc_year',
+      'discoverymethod',
+    ]);
+  });
+
+  // Distance renders as parsecs here and light-years on the page; the measure is parsecs in both.
+  it('carries the same measure as the section stat with the same id', () => {
+    for (const stat of planetKeyStats(QUICK_LOOK)) {
+      expect(stat.measure).toBe(statOf(stat.id, QUICK_LOOK).measure);
+    }
+    expect(planetKeyStats(QUICK_LOOK)[0]).toMatchObject({ id: 'sy_dist', measure: 551.7 });
   });
 
   it('keeps a measured zero, which a falsy check would have called unknown', () => {

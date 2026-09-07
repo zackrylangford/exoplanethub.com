@@ -5,7 +5,7 @@ import type { Planet } from '@/lib/mockPlanets';
 import type { SortKey, SortOrder } from '@/lib/planetFilters';
 import PlanetTable from '@/components/explore/PlanetTable';
 import { usePagination } from '@/lib/usePagination';
-import { getESIBand } from '@/components/explore/esiBands';
+import { getESIBand } from '@/lib/esiBands';
 
 function makePlanet(overrides: Partial<Planet> & Pick<Planet, 'pl_name'>): Planet {
   return {
