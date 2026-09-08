@@ -1,4 +1,4 @@
-import { getESIBand } from '@/lib/esiBands';
+import { esiScoreText, getESIBand } from '@/lib/esiBands';
 import type { Planet } from '@/lib/mockPlanets';
 import { discoveredIn, lightYearsAway } from '@/lib/planetStats';
 import { getTheme, SITE_THEME } from '@/lib/theme';
@@ -67,10 +67,10 @@ function describePlanet(planet: Planet): ShareCardContent {
 function esiBadge(score: number | undefined): ShareCardBadge | null {
   if (typeof score !== 'number' || !Number.isFinite(score)) return null;
 
-  const { tier, label } = getESIBand(score);
+  const { tier } = getESIBand(score);
 
   return {
-    text: `ESI ${score} · ${label}`,
+    text: esiScoreText(score),
     background: colors[`esiBand${tier}`],
     color: colors[`esiBand${tier}Text`],
   };

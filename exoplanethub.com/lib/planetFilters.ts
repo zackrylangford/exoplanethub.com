@@ -196,7 +196,7 @@ function matchesRange(value: number | null, range: Range): boolean {
 function activePredicates(state: FilterState): PlanetPredicate[] {
   const predicates: PlanetPredicate[] = [];
 
-  if (state.q.trim() !== '') predicates.push(planetMatcher(state.q));
+  if (/\S/.test(state.q)) predicates.push(planetMatcher(state.q));
 
   if (state.methods.length > 0) {
     const chosen = new Set(state.methods);
