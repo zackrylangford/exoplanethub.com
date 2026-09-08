@@ -6,6 +6,7 @@ import {
   planetStatSections,
   type PlanetStat,
   type PlanetStatSection,
+  type SectionId,
   type StatKey,
 } from '@/lib/planetStats';
 
@@ -22,7 +23,7 @@ export interface ComparisonRow {
 }
 
 export interface ComparisonSection {
-  id: string;
+  id: SectionId;
   title: string;
   rows: ComparisonRow[];
   note: string | null;
@@ -68,9 +69,7 @@ const ESI_INPUTS = [
   ['pl_eqt', 'temperature'],
 ] as const;
 
-const STAR_SECTION = 'star';
-const SYSTEM_SECTION = 'system';
-const NO_MEASURED_DATA = 'Neither planet has measured data for this section';
+const NO_DATA = 'Neither planet has data for this section';
 
 // Pinned locale so the verdict reads identically wherever the page is rendered or cached.
 const MISSING_INPUTS = new Intl.ListFormat('en-US', { type: 'disjunction' });
@@ -81,7 +80,7 @@ function isScored(planet: Planet): planet is ScoredPlanet {
   return typeof planet.esi === 'number';
 }
 
-function hasNoMeasured(planet: Planet): string {
+function missingInputsClause(planet: Planet): string {
   const missing = ESI_INPUTS.filter(([id]) => !isComparable(planet[id])).map(([, input]) => input);
   return `${planet.pl_name} has no measured ${MISSING_INPUTS.format(missing)}`;
 }
@@ -92,7 +91,7 @@ interface Judgement {
 }
 
 function onlyScored(scored: ScoredPlanet, other: Planet): Judgement {
-  return { headline: `Only ${scored.pl_name} can be scored: ${hasNoMeasured(other)}`, scored: [scored] };
+  return { headline: `Only ${scored.pl_name} can be scored: ${missingInputsClause(other)}`, scored: [scored] };
 }
 
 function judge(a: Planet, b: Planet): Judgement {
@@ -115,7 +114,7 @@ function judge(a: Planet, b: Planet): Judgement {
   if (isScored(b)) return onlyScored(b, a);
 
   return {
-    headline: `Neither planet can be scored: ${hasNoMeasured(a)}, and ${hasNoMeasured(b)}`,
+    headline: `Neither planet can be scored: ${missingInputsClause(a)}, and ${missingInputsClause(b)}`,
     scored: [],
   };
 }
@@ -123,8 +122,10 @@ function judge(a: Planet, b: Planet): Judgement {
 // The summary lists the scores in the order the headline names the planets, so "X is closer" is followed by X's score.
 function esiVerdict(a: Planet, b: Planet): Verdict {
   const { headline, scored } = judge(a, b);
+  if (scored.length === 0) return { headline, summary: headline };
+
   const scores = scored.map((planet) => esiScoreText(planet.esi)).join(' vs ');
-  return { headline, summary: scores === '' ? headline : `${headline} — ${scores}` };
+  return { headline, summary: `${headline} — ${scores}` };
 }
 
 function ratioNotes(a: PlanetStat, b: PlanetStat): [string | null, string | null] {
@@ -156,17 +157,17 @@ function comparedSection(section: PlanetStatSection, statsB: StatsById): Compari
     return [row(statA, statB)];
   });
 
-  return { id: section.id, title: section.title, rows, note: rows.length === 0 ? NO_MEASURED_DATA : null };
+  return { id: section.id, title: section.title, rows, note: rows.length === 0 ? NO_DATA : null };
 }
 
-function hostNameOf(stats: StatsById): string | null {
-  return stats.get('hostname')?.value ?? null;
+function hostNameOf(sections: PlanetStatSection[]): string | null {
+  return sections.flatMap((section) => section.stats).find((stat) => stat.id === 'hostname')?.value ?? null;
 }
 
 // Yields the shared name itself, so two null hosts come out as no shared star rather than a match.
-function sharedHost(statsA: StatsById, statsB: StatsById): string | null {
-  const host = hostNameOf(statsA);
-  return host === hostNameOf(statsB) ? host : null;
+function sharedHost(sectionsA: PlanetStatSection[], sectionsB: PlanetStatSection[]): string | null {
+  const host = hostNameOf(sectionsA);
+  return host === hostNameOf(sectionsB) ? host : null;
 }
 
 function sameSystemLine(host: string, a: Planet, b: Planet): string {
@@ -174,19 +175,29 @@ function sameSystemLine(host: string, a: Planet, b: Planet): string {
   return `Both orbit ${host} — same star, same system${distance === null ? '' : `, ${distance}`}`;
 }
 
-export function comparePlanets(a: Planet, b: Planet): PlanetComparison {
-  const sectionsA = planetStatSections(a);
-  const statsB = statsById(planetStatSections(b));
-  const host = sharedHost(statsById(sectionsA), statsB);
-
-  const sections = sectionsA.flatMap((section): ComparisonSection[] => {
-    if (host === null) return [comparedSection(section, statsB)];
-    if (section.id === SYSTEM_SECTION) return [];
-    if (section.id === STAR_SECTION) {
-      return [{ id: section.id, title: section.title, rows: [], note: sameSystemLine(host, a, b) }];
-    }
+// Around one shared star, System would only repeat itself and Star reads better as a single line.
+function sameSystemSections(
+  sectionsA: PlanetStatSection[],
+  statsB: StatsById,
+  line: string
+): ComparisonSection[] {
+  return sectionsA.flatMap((section): ComparisonSection[] => {
+    if (section.id === 'system') return [];
+    if (section.id === 'star') return [{ id: section.id, title: section.title, rows: [], note: line }];
     return [comparedSection(section, statsB)];
   });
+}
+
+export function comparePlanets(a: Planet, b: Planet): PlanetComparison {
+  const sectionsA = planetStatSections(a);
+  const sectionsB = planetStatSections(b);
+  const statsB = statsById(sectionsB);
+  const host = sharedHost(sectionsA, sectionsB);
+
+  const sections =
+    host === null
+      ? sectionsA.map((section) => comparedSection(section, statsB))
+      : sameSystemSections(sectionsA, statsB, sameSystemLine(host, a, b));
 
   return { sections, verdict: esiVerdict(a, b) };
 }

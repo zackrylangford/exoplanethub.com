@@ -6,7 +6,7 @@ import {
   type ComparisonSection,
   type PlanetComparison,
 } from '@/lib/planetComparison';
-import type { StatKey } from '@/lib/planetStats';
+import type { SectionId, StatKey } from '@/lib/planetStats';
 
 // Digit-free names, so a headline that quotes a number cannot hide behind "Kepler-452 b".
 const ALPHA: Planet = {
@@ -39,17 +39,17 @@ const EARTHLIKE: Partial<Planet> = { pl_rade: 1, pl_bmasse: 1, pl_eqt: 288 };
 
 const TRAPPIST: Partial<Planet> = { hostname: 'TRAPPIST-1', st_teff: 2566, sy_pnum: 7 };
 
-const NO_MEASURED_DATA = 'Neither planet has measured data for this section';
+const NO_DATA = 'Neither planet has data for this section';
 
 function compare(a: Partial<Planet>, b: Partial<Planet>): PlanetComparison {
   return comparePlanets({ ...ALPHA, ...a }, { ...BETA, ...b });
 }
 
-function sectionIds(comparison: PlanetComparison): string[] {
+function sectionIds(comparison: PlanetComparison): SectionId[] {
   return comparison.sections.map((section) => section.id);
 }
 
-function sectionOf(comparison: PlanetComparison, id: string): ComparisonSection {
+function sectionOf(comparison: PlanetComparison, id: SectionId): ComparisonSection {
   const section = comparison.sections.find((candidate) => candidate.id === id);
   if (!section) throw new Error(`No section "${id}"`);
   return section;
@@ -129,7 +129,7 @@ describe('comparePlanets rows', () => {
       id: 'discovery',
       title: 'Discovery',
       rows: [],
-      note: NO_MEASURED_DATA,
+      note: NO_DATA,
     });
   });
 
@@ -139,7 +139,7 @@ describe('comparePlanets rows', () => {
     expect(sectionIds(comparison)).toEqual(['planet', 'star', 'system', 'discovery']);
     for (const section of comparison.sections) {
       expect(section.rows).toEqual([]);
-      expect(section.note).toBe(NO_MEASURED_DATA);
+      expect(section.note).toBe(NO_DATA);
     }
   });
 });

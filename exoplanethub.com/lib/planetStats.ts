@@ -33,8 +33,10 @@ export interface PlanetStat {
   measure: number | null;
 }
 
+export type SectionId = 'planet' | 'star' | 'system' | 'discovery';
+
 export interface PlanetStatSection {
-  id: string;
+  id: SectionId;
   title: string;
   stats: PlanetStat[];
 }
