@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ESI_BANDS, getESIBand } from '@/lib/esiBands';
+import { ESI_BANDS, esiScoreText, getESIBand } from '@/lib/esiBands';
 import { generateCSSVariables } from '@/lib/theme';
 
 describe('ESI_BANDS', () => {
@@ -43,5 +43,12 @@ describe('getESIBand', () => {
 
   it('keeps scores below the scale in the lowest band rather than returning nothing', () => {
     expect(getESIBand(-1)).toBe(ESI_BANDS[ESI_BANDS.length - 1]);
+  });
+});
+
+describe('esiScoreText', () => {
+  it('pairs the score with its band label, so a number is never stated bare', () => {
+    expect(esiScoreText(83)).toBe('ESI 83 · Good similarity');
+    expect(esiScoreText(12)).toBe('ESI 12 · Low similarity');
   });
 });
