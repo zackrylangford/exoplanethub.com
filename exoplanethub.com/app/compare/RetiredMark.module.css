@@ -1,0 +1,10 @@
+.mark {
+  margin: 0;
+  padding: 10px 14px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-text);
+  background: var(--color-surface-alt);
+  border-left: 4px solid var(--color-accent);
+  border-radius: 8px;
+}
