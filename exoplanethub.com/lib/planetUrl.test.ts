@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { compareUrl, planetNameFromParam, planetUrl } from '@/lib/planetUrl';
+import {
+  compareUrl,
+  FIRST_COLUMN_PARAM,
+  planetNameFromParam,
+  planetUrl,
+  SECOND_COLUMN_PARAM,
+} from '@/lib/planetUrl';
 
 // Archive names carry every character class the URL layer has to survive.
 const ARCHIVE_NAMES = [
@@ -95,7 +101,7 @@ describe('compareUrl and planetNameFromParam round trip', () => {
   it.each(ARCHIVE_NAMES)('recovers %s exactly from either column', (name) => {
     const url = compareUrl(name, name);
 
-    expect(planetNameFromParam(queryParamOf(url, 'a'))).toBe(name);
-    expect(planetNameFromParam(queryParamOf(url, 'b'))).toBe(name);
+    expect(planetNameFromParam(queryParamOf(url, FIRST_COLUMN_PARAM))).toBe(name);
+    expect(planetNameFromParam(queryParamOf(url, SECOND_COLUMN_PARAM))).toBe(name);
   });
 });

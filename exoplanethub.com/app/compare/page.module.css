@@ -1,0 +1,131 @@
+.page {
+  min-height: 100vh;
+  background: var(--color-background);
+  padding: 120px 24px 64px;
+}
+
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.title {
+  font-family: var(--font-heading);
+  font-size: 48px;
+  font-weight: 700;
+  color: var(--color-text);
+  text-align: center;
+  margin: 0 0 16px;
+}
+
+.verdict {
+  font-size: 22px;
+  line-height: 1.5;
+  color: var(--color-text);
+  text-align: center;
+  margin: 0;
+}
+
+.lede {
+  font-size: 18px;
+  line-height: 1.6;
+  color: var(--color-text-muted);
+  text-align: center;
+  margin: 24px 0 0;
+}
+
+/* Cards pin to the outer tracks so the middle one is Swap's whether or not it renders. */
+.strip {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+  margin: 32px 0 0;
+}
+
+.strip > :first-child {
+  grid-column: 1;
+}
+
+.strip > :last-child {
+  grid-column: 3;
+}
+
+.swap {
+  align-self: center;
+  padding: 8px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  color: var(--color-primary);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.swap:hover {
+  border-color: var(--color-primary);
+}
+
+.swap:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 32px;
+}
+
+.action {
+  display: block;
+  padding: 12px 24px;
+  background: var(--color-primary);
+  border: 1px solid var(--color-primary);
+  border-radius: 8px;
+  color: var(--color-primary-contrast);
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.action:hover {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.actionQuiet {
+  background: transparent;
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+.actionQuiet:hover {
+  background: var(--color-surface);
+  border-color: var(--color-primary);
+  color: var(--color-text);
+}
+
+.action:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+
+@media (max-width: 768px) {
+  .title {
+    font-size: 32px;
+  }
+
+  .verdict {
+    font-size: 18px;
+  }
+}
+
+@media (max-width: 560px) {
+  .strip {
+    gap: 8px;
+  }
+}
