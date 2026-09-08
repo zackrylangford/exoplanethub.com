@@ -183,18 +183,23 @@ describe('planetStatSections measures', () => {
 });
 
 describe('planetStatSections values', () => {
-  it.each([
-    ['Radius', { pl_rade: 1.63 }, '1.63 × Earth'],
-    ['Mass', { pl_bmasse: 5 }, '5 × Earth'],
-    ['Density', { pl_dens: 5.51 }, '5.51 g/cm³'],
-    ['Equilibrium temperature', { pl_eqt: 265 }, '265 K'],
-    ['Starlight received', { pl_insol: 1.1 }, '1.1 × Earth'],
-    ['Orbital period', { pl_orbper: 384.843 }, '384.8 days'],
-    ['Average distance from its star', { pl_orbsmax: 1.046 }, '1.046 AU'],
-    ['Surface temperature', { st_teff: 5757 }, '5,757 K'],
-    ['Age', { st_age: 6 }, '6 billion years'],
-  ])('renders %s with its unit', (label, planet, expected) => {
-    expect(valueOf(label, planet)).toBe(expected);
+  // By id, because "Radius" and "Mass" label a stat in both the Planet and Star sections.
+  const UNIT_CASES: [StatKey, Partial<Planet>, string][] = [
+    ['pl_rade', { pl_rade: 1.63 }, '1.63 × Earth'],
+    ['pl_bmasse', { pl_bmasse: 5 }, '5 × Earth'],
+    ['pl_dens', { pl_dens: 5.51 }, '5.51 g/cm³'],
+    ['pl_eqt', { pl_eqt: 265 }, '265 K'],
+    ['pl_insol', { pl_insol: 1.1 }, '1.1 × Earth'],
+    ['pl_orbper', { pl_orbper: 384.843 }, '384.8 days'],
+    ['pl_orbsmax', { pl_orbsmax: 1.046 }, '1.046 AU'],
+    ['st_teff', { st_teff: 5757 }, '5,757 K'],
+    ['st_rad', { st_rad: 1.11 }, '1.11 × Sun'],
+    ['st_mass', { st_mass: 1.04 }, '1.04 × Sun'],
+    ['st_age', { st_age: 6 }, '6 billion years'],
+  ];
+
+  it.each(UNIT_CASES)('renders %s with its unit', (id, planet, expected) => {
+    expect(statOf(id, planet).value).toBe(expected);
   });
 
   it('names the host star as the archive spells it', () => {
