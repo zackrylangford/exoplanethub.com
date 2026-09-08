@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import type { Planet } from '@/lib/mockPlanets';
-import { comparePlanets } from '@/lib/planetComparison';
+import { comparePlanets, type PlanetComparison } from '@/lib/planetComparison';
 import { findPlanet, type FoundPlanet } from '@/lib/planetDetail';
 import {
   compareUrl,
@@ -11,7 +10,9 @@ import {
 } from '@/lib/planetUrl';
 import { SITE_NAME } from '@/lib/site';
 import ColumnCard from './ColumnCard';
+import ComparisonTable, { type ColumnNames } from './ComparisonTable';
 import EmptySlot, { type Slot } from './EmptySlot';
+import VerdictHeadline from './VerdictHeadline';
 import styles from './page.module.css';
 
 type SearchParams = Record<string, string | string[] | undefined>;
@@ -29,7 +30,17 @@ interface Column {
 interface Columns {
   a: Column;
   b: Column;
+}
+
+interface CompareRequest {
+  columns: Columns;
   indexable: boolean;
+}
+
+// Both columns resolved: the names that head the table and the comparison beneath them.
+interface ResolvedPair {
+  names: ColumnNames;
+  comparison: PlanetComparison;
 }
 
 const COMPARE_METADATA: Metadata = {
@@ -49,7 +60,7 @@ async function loadColumn(name: string | null): Promise<Column> {
   return { name, found: name === null ? null : await findPlanet(name) };
 }
 
-async function loadColumns(searchParams: ComparePageProps['searchParams']): Promise<Columns> {
+async function loadRequest(searchParams: ComparePageProps['searchParams']): Promise<CompareRequest> {
   const params = await searchParams;
   const a = nameParam(params, FIRST_COLUMN_PARAM);
   const b = nameParam(params, SECOND_COLUMN_PARAM);
@@ -59,20 +70,30 @@ async function loadColumns(searchParams: ComparePageProps['searchParams']): Prom
 
   // The same planet twice is one planet, so the second pick reads as not yet made.
   const [columnA, columnB] = await Promise.all([loadColumn(a), loadColumn(b === a ? null : b)]);
-  return { a: columnA, b: columnB, indexable };
+  return { columns: { a: columnA, b: columnB }, indexable };
 }
 
-function resolvedPair({ a, b }: Columns): [Planet, Planet] | null {
-  return a.found !== null && b.found !== null ? [a.found.planet, b.found.planet] : null;
+function resolvedPair({ a, b }: Columns): ResolvedPair | null {
+  if (a.found === null || b.found === null) return null;
+
+  const { planet: planetA } = a.found;
+  const { planet: planetB } = b.found;
+  return {
+    names: { a: planetA.pl_name, b: planetB.pl_name },
+    comparison: comparePlanets(planetA, planetB),
+  };
+}
+
+function secondPickInvitation(planetName: string): string {
+  return `Pick a second planet to compare with ${planetName}`;
 }
 
 function compareMetadata(columns: Columns): Metadata {
   const pair = resolvedPair(columns);
   if (pair !== null) {
-    const [planetA, planetB] = pair;
     return {
-      title: `${planetA.pl_name} vs ${planetB.pl_name} — Compare planets | ${SITE_NAME}`,
-      description: comparePlanets(planetA, planetB).verdict.summary,
+      title: `${pair.names.a} vs ${pair.names.b} — Compare planets | ${SITE_NAME}`,
+      description: pair.comparison.verdict.summary,
     };
   }
 
@@ -81,31 +102,31 @@ function compareMetadata(columns: Columns): Metadata {
 
   return {
     title: `Compare ${found.planet.pl_name} with another planet | ${SITE_NAME}`,
-    description: `Pick a second planet to compare with ${found.planet.pl_name}`,
+    description: secondPickInvitation(found.planet.pl_name),
   };
 }
 
 // Both lookups are cache()d, so titling the page and rendering it share the same reads.
 export async function generateMetadata({ searchParams }: ComparePageProps): Promise<Metadata> {
-  const columns = await loadColumns(searchParams);
+  const { columns, indexable } = await loadRequest(searchParams);
   const metadata = compareMetadata(columns);
-  return columns.indexable ? metadata : { ...metadata, robots: { index: false } };
+  return indexable ? metadata : { ...metadata, robots: { index: false } };
 }
 
 export default async function ComparePage({ searchParams }: ComparePageProps) {
-  const columns = await loadColumns(searchParams);
+  const { columns } = await loadRequest(searchParams);
   const pair = resolvedPair(columns);
 
   return (
     <main className={styles.page}>
       <div className={styles.container}>
         <h1 className={styles.title}>Compare planets</h1>
-        {pair !== null && (
-          <p className={styles.verdict}>{comparePlanets(...pair).verdict.headline}</p>
-        )}
+        {pair !== null && <VerdictHeadline verdict={pair.comparison.verdict} />}
         <ColumnStrip {...columns} />
-        {pair === null && (
+        {pair === null ? (
           <p className={styles.lede}>{invitation(columns.a.found ?? columns.b.found)}</p>
+        ) : (
+          <ComparisonTable sections={pair.comparison.sections} names={pair.names} />
         )}
       </div>
     </main>
@@ -145,5 +166,5 @@ function ColumnIdentity({
 function invitation(found: FoundPlanet | null): string {
   return found === null
     ? 'Pick two planets to put side by side'
-    : `Pick a second planet to compare with ${found.planet.pl_name}`;
+    : secondPickInvitation(found.planet.pl_name);
 }

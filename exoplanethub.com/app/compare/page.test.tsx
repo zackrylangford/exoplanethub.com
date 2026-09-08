@@ -148,11 +148,12 @@ describe('ComparePage with one planet', () => {
     expect(within(cardOf('Kepler-452 b')).getByRole('button', { name: /^ESI 83, / })).toBeInTheDocument();
   });
 
-  it('invites the second pick by name, with no verdict and no Swap to move one name right', async () => {
+  it('invites the second pick by name, with no verdict, no table and no Swap to move one name right', async () => {
     await renderPage({ a: 'Kepler-452 b' });
 
     expect(screen.getByText('Pick a second planet to compare with Kepler-452 b')).toBeInTheDocument();
     expect(screen.queryByText(/Earth's conditions/)).toBeNull();
+    expect(screen.queryByRole('table')).toBeNull();
     expect(swapLink()).toBeNull();
   });
 
@@ -208,9 +209,23 @@ describe('ComparePage with both planets', () => {
     await renderPage({ a: 'Kepler-452 b', b: 'TRAPPIST-1 e' });
 
     const verdict = screen.getByText(comparePlanets(KEPLER_452B, TRAPPIST_1E).verdict.headline);
+    expect(verdict.tagName).toBe('P');
     expect(precedes(screen.getByRole('heading', { level: 1 }), verdict)).toBe(true);
     expect(precedes(verdict, cardOf('Kepler-452 b'))).toBe(true);
     expect(screen.queryByText(/^Pick /)).toBeNull();
+  });
+
+  it('lays the comparison out as a table below the cards, headed by the planet names in URL order', async () => {
+    await renderPage({ a: 'TRAPPIST-1 e', b: 'Kepler-452 b' });
+
+    const table = screen.getByRole('table');
+    expect(precedes(cardOf('Kepler-452 b'), table)).toBe(true);
+    expect(within(table).getAllByRole('columnheader').map((header) => header.textContent)).toEqual([
+      'Stat',
+      'TRAPPIST-1 e',
+      'Kepler-452 b',
+    ]);
+    expect(within(table).getByText('Not measured')).toBeInTheDocument();
   });
 
   it('swaps the columns and clears one column at a time, all by URL', async () => {
