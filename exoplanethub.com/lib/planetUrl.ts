@@ -1,6 +1,10 @@
 const PLANET_PATH = '/planet';
 const COMPARE_PATH = '/compare';
 
+// The /compare query contract: a names the left column, b the right.
+export const FIRST_COLUMN_PARAM = 'a';
+export const SECOND_COLUMN_PARAM = 'b';
+
 // No archive designation comes close to this; a longer segment is someone's prose, not a name.
 const MAX_NAME_LENGTH = 80;
 
@@ -10,8 +14,12 @@ export function planetUrl(planetName: string): string {
 
 // Query strings are form-decoded, so a bare '+' in a designation would arrive as a space.
 export function compareUrl(a: string | null, b: string | null): string {
-  const query = Object.entries({ a, b })
-    .filter((entry): entry is [string, string] => entry[1] !== null)
+  const columns: [string, string | null][] = [
+    [FIRST_COLUMN_PARAM, a],
+    [SECOND_COLUMN_PARAM, b],
+  ];
+  const query = columns
+    .filter((column): column is [string, string] => column[1] !== null)
     .map(([param, planetName]) => `${param}=${encodeURIComponent(planetName)}`)
     .join('&');
 
