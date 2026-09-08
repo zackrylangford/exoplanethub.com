@@ -13,7 +13,8 @@
 html,
 body {
   max-width: 100vw;
-  overflow-x: hidden;
+  /* clip, not hidden: hidden makes body a scroll container and sticky elements never stick. */
+  overflow-x: clip;
 }
 
 body {
