@@ -1,10 +1,11 @@
 'use client';
 import { useRouter } from 'next/navigation';
-import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useId, useMemo, useState, type KeyboardEvent } from 'react';
 import type { PlanetSummary } from '@/lib/mockPlanets';
 import { planetMatcher } from '@/lib/planetFilters';
 import { measurement } from '@/lib/planetStats';
 import { compareUrl } from '@/lib/planetUrl';
+import { useAnnouncement } from '@/lib/useAnnouncement';
 import { loadPlanetArchive } from './planetArchive';
 import styles from './PlanetPicker.module.css';
 
@@ -29,7 +30,6 @@ interface PlanetPickerProps {
 export default function PlanetPicker({ slot, otherName, excludedPlanetName }: PlanetPickerProps) {
   const router = useRouter();
   const id = useId();
-  const listboxRef = useRef<HTMLUListElement>(null);
   const [archive, setArchive] = useState<Archive>({ status: 'idle' });
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
@@ -44,13 +44,17 @@ export default function PlanetPicker({ slot, otherName, excludedPlanetName }: Pl
   // The list can shrink beneath a remembered index, so the active option is re-derived each render.
   const active = expanded && activeIndex !== null && activeIndex < suggestions.length ? activeIndex : null;
 
-  useEffect(() => {
-    if (active !== null) listboxRef.current?.children.item(active)?.scrollIntoView({ block: 'nearest' });
-  }, [active]);
-
   const inputId = `${id}-input`;
   const listboxId = `${id}-listbox`;
   const optionId = (index: number) => `${id}-option-${index}`;
+  const activeOptionId = active === null ? undefined : optionId(active);
+
+  useEffect(() => {
+    if (activeOptionId !== undefined) document.getElementById(activeOptionId)?.scrollIntoView({ block: 'nearest' });
+  }, [activeOptionId]);
+
+  const status = statusLine(archive, query, open, suggestions.length, matches.length);
+  const announced = useAnnouncement(status);
 
   function loadOnce() {
     if (archive.status === 'loading' || archive.status === 'loaded') return;
@@ -109,7 +113,7 @@ export default function PlanetPicker({ slot, otherName, excludedPlanetName }: Pl
           aria-autocomplete="list"
           aria-expanded={expanded}
           aria-controls={listboxId}
-          aria-activedescendant={active === null ? undefined : optionId(active)}
+          aria-activedescendant={activeOptionId}
           onFocus={() => {
             loadOnce();
             setOpen(true);
@@ -125,7 +129,6 @@ export default function PlanetPicker({ slot, otherName, excludedPlanetName }: Pl
         />
         {/* Pressing on the list must not blur the input, or it closes before the click lands. */}
         <ul
-          ref={listboxRef}
           id={listboxId}
           role="listbox"
           aria-label={`Suggestions for the ${slot} planet`}
@@ -151,8 +154,11 @@ export default function PlanetPicker({ slot, otherName, excludedPlanetName }: Pl
           })}
         </ul>
       </div>
-      <p className={styles.status} role="status">
-        {statusLine(archive, query, matches.length)}
+      <p className={styles.status}>
+        <span aria-hidden="true">{status}</span>
+        <span className={styles.announcement} role="status">
+          {announced}
+        </span>
       </p>
     </div>
   );
@@ -175,11 +181,11 @@ function hint({ pl_rade, esi }: PlanetSummary): string | null {
   return known.length === 0 ? null : known.join(' · ');
 }
 
-function statusLine(archive: Archive, query: string, matchCount: number): string {
+function statusLine(archive: Archive, query: string, open: boolean, shown: number, total: number): string {
   if (archive.status === 'unavailable') return "Couldn't load the planet list. Try again in a moment.";
   if (archive.status === 'loading') return 'Loading the planet list…';
   const needle = query.trim();
-  if (archive.status !== 'loaded' || needle === '') return '';
-  if (matchCount === 0) return `No planet or star matches “${needle}”`;
-  return matchCount === 1 ? '1 planet matches' : `${matchCount} planets match`;
+  if (archive.status !== 'loaded' || !open || needle === '') return '';
+  if (total === 0) return `No planet or star matches “${needle}”`;
+  return `Showing ${shown} of ${total} ${total === 1 ? 'planet' : 'planets'}`;
 }

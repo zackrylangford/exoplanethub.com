@@ -89,6 +89,17 @@
   color: var(--color-text-muted);
 }
 
+.announcement {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 /* Side-by-side slots are too narrow for a name and its hint, so each list grows toward the other slot. */
 @media (max-width: 560px) {
   .input {

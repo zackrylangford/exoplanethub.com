@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PlanetSummary } from '@/lib/mockPlanets';
@@ -48,6 +48,12 @@ function renderPicker({ slot = 'first', otherName = null, excludedPlanetName = n
 
 function activeOptionId(input: HTMLElement) {
   return input.getAttribute('aria-activedescendant');
+}
+
+// The seen status and its spoken twin share one paragraph; only the twin is the live region.
+function status() {
+  const announcement = screen.getByRole('status');
+  return { seen: announcement.previousElementSibling as HTMLElement, announcement };
 }
 
 // jsdom cascades document stylesheets into getComputedStyle, so the module's CSS is tested as written.
@@ -118,7 +124,7 @@ describe('PlanetPicker archive loading', () => {
 
     await user.click(input);
 
-    expect(screen.getByRole('status')).toHaveTextContent('Loading the planet list…');
+    expect(status().seen).toHaveTextContent('Loading the planet list…');
     expect(screen.queryByRole('listbox')).toBeNull();
   });
 
@@ -151,7 +157,7 @@ describe('PlanetPicker suggestions', () => {
 
     expect(screen.queryByRole('listbox')).toBeNull();
     expect(input).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.getByRole('status')).toBeEmptyDOMElement();
+    expect(status().seen).toBeEmptyDOMElement();
   });
 
   it("matches planet or host name by explore's rule, from the raw typed text", async () => {
@@ -163,13 +169,13 @@ describe('PlanetPicker suggestions', () => {
     expect(screen.getAllByRole('option')).toHaveLength(1);
   });
 
-  it('offers at most eight matches but counts them all in the status line', async () => {
+  it('offers at most eight matches and says how many of how many it is showing', async () => {
     const { user, input } = renderPicker();
 
     await user.type(input, 'kepler-4');
 
     expect(await screen.findAllByRole('option')).toHaveLength(8);
-    expect(screen.getByRole('status')).toHaveTextContent('11 planets match');
+    expect(status().seen).toHaveTextContent('Showing 8 of 11 planets');
   });
 
   it('counts a single match in the singular', async () => {
@@ -178,7 +184,21 @@ describe('PlanetPicker suggestions', () => {
     await user.type(input, 'dimidium');
 
     expect(await screen.findByRole('option')).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('1 planet matches');
+    expect(status().seen).toHaveTextContent(/^Showing 1 of 1 planet$/);
+  });
+
+  it('drops the count with the list, so "showing" never describes a closed list', async () => {
+    const { user, input } = renderPicker();
+
+    await user.type(input, 'trappist');
+    await screen.findByRole('listbox');
+    expect(status().seen).toHaveTextContent('Showing 2 of 2 planets');
+
+    await user.keyboard('{Escape}');
+    expect(status().seen).toBeEmptyDOMElement();
+
+    await user.keyboard('{ArrowDown}');
+    expect(status().seen).toHaveTextContent('Showing 2 of 2 planets');
   });
 
   it("never offers the other column's planet", async () => {
@@ -213,6 +233,41 @@ describe('PlanetPicker suggestions', () => {
     expect(await screen.findByText('No planet or star matches “zzz”')).toBeInTheDocument();
     expect(screen.queryByRole('listbox')).toBeNull();
     expect(input).toHaveAttribute('aria-expanded', 'false');
+  });
+});
+
+describe('PlanetPicker announcements', () => {
+  it('keeps the seen status from being read twice by hiding it from the announcement', async () => {
+    const { user, input } = renderPicker();
+
+    await user.type(input, 'trappist');
+    await screen.findByRole('listbox');
+
+    expect(status().seen).toHaveAttribute('aria-hidden', 'true');
+    expect(status().seen).toHaveTextContent('Showing 2 of 2 planets');
+  });
+
+  it('speaks the count only once the typing has settled, not on each keystroke', async () => {
+    const { user, input } = renderPicker();
+
+    await user.type(input, 'kepler-4');
+    await screen.findAllByRole('option');
+
+    expect(status().seen).toHaveTextContent('Showing 8 of 11 planets');
+    expect(status().announcement).toBeEmptyDOMElement();
+
+    await waitFor(() => expect(status().announcement).toHaveTextContent('Showing 8 of 11 planets'));
+  });
+
+  it('never speaks a half-typed needle back at the visitor', async () => {
+    const { user, input } = renderPicker();
+
+    await user.type(input, 'zzz');
+    await waitFor(() => expect(status().seen).toHaveTextContent('No planet or star matches “zzz”'));
+
+    expect(status().announcement).toBeEmptyDOMElement();
+
+    await waitFor(() => expect(status().announcement).toHaveTextContent('No planet or star matches “zzz”'));
   });
 });
 
