@@ -7,6 +7,7 @@ let archiveRequest: Promise<PlanetSummary[]> | null = null;
 
 async function fetchArchive(): Promise<PlanetSummary[]> {
   const response = await fetch('/api/planets');
+  if (!response.ok) throw new Error(`Planets endpoint answered ${response.status}`);
   const data: unknown = await response.json();
   if (!Array.isArray(data)) throw new Error('Planets endpoint did not return a list');
   return data.sort((a: PlanetSummary, b: PlanetSummary) => BY_DESIGNATION.compare(a.pl_name, b.pl_name));

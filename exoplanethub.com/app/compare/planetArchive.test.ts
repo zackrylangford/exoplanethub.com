@@ -16,8 +16,12 @@ function summary(pl_name: string): PlanetSummary {
   };
 }
 
-function respondWith(payload: unknown) {
-  return vi.fn().mockResolvedValue({ json: () => Promise.resolve(payload) });
+function archiveResponse(payload: unknown, status = 200) {
+  return { ok: status < 400, status, json: () => Promise.resolve(payload) };
+}
+
+function respondWith(payload: unknown, status = 200) {
+  return vi.fn().mockResolvedValue(archiveResponse(payload, status));
 }
 
 // The module holds the page-wide cache, so every test starts from a fresh copy of it.
@@ -58,16 +62,17 @@ describe('loadPlanetArchive', () => {
   });
 
   it.each([
-    ['the endpoint answers with an error body', () => respondWith({ error: 'Failed to fetch planets' })],
-    ['the request itself fails', () => vi.fn().mockRejectedValue(new TypeError('Failed to fetch'))],
-  ])('rejects when %s, then lets the next caller try again', async (_case, failingFetch) => {
+    ['the endpoint answers with an error status', () => respondWith({ error: 'Failed to fetch planets' }, 500), 'answered 500'],
+    ['the endpoint answers with something other than a list', () => respondWith({ planets: [] }), 'did not return a list'],
+    ['the request itself fails', () => vi.fn().mockRejectedValue(new TypeError('Failed to fetch')), 'Failed to fetch'],
+  ])('rejects when %s, then lets the next caller try again', async (_case, failingFetch, message) => {
     const fetch = failingFetch();
     vi.stubGlobal('fetch', fetch);
     const loadPlanetArchive = await freshLoader();
 
-    await expect(loadPlanetArchive()).rejects.toThrow();
+    await expect(loadPlanetArchive()).rejects.toThrow(message);
 
-    fetch.mockResolvedValue({ json: () => Promise.resolve([summary('Kepler-452 b')]) });
+    fetch.mockResolvedValue(archiveResponse([summary('Kepler-452 b')]));
     await expect(loadPlanetArchive()).resolves.toHaveLength(1);
     expect(fetch).toHaveBeenCalledTimes(2);
   });
