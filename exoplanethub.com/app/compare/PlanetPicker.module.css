@@ -1,0 +1,101 @@
+.picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.label {
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+
+.field {
+  position: relative;
+}
+
+/* 16px keeps iOS from zooming the page when the box takes focus. */
+.input {
+  width: 100%;
+  padding: 12px 20px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: 16px;
+}
+
+.input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.listbox {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 2;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  max-height: 320px;
+  overflow-y: auto;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+}
+
+.option {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.option:hover,
+.option[aria-selected='true'] {
+  background: var(--color-surface-alt);
+}
+
+.optionName {
+  font-weight: 600;
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+.optionHint {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.status {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--color-text-muted);
+}
+
+/* Side-by-side slots are too narrow for a name and its hint, so each list grows toward the other slot. */
+@media (max-width: 560px) {
+  .input {
+    padding: 12px 14px;
+  }
+
+  .listbox {
+    right: auto;
+    min-width: 240px;
+  }
+
+  .picker[data-slot='second'] .listbox {
+    left: auto;
+    right: 0;
+  }
+}

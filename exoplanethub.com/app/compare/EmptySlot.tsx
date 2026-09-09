@@ -1,20 +1,20 @@
+import PlanetPicker, { type Slot } from './PlanetPicker';
 import styles from './EmptySlot.module.css';
-
-// Pick order, not left/right: Swap and the mobile reflow cannot make "first" lie.
-export type Slot = 'first' | 'second';
 
 interface EmptySlotProps {
   slot: Slot;
   unknownName: string | null;
+  otherName: string | null;
+  excludedPlanetName: string | null;
 }
 
-export default function EmptySlot({ slot, unknownName }: EmptySlotProps) {
+export default function EmptySlot({ slot, unknownName, otherName, excludedPlanetName }: EmptySlotProps) {
   return (
     <div className={styles.slot}>
       {unknownName !== null && (
         <p className={styles.unknown}>We don&apos;t have a planet called {unknownName}</p>
       )}
-      <p className={styles.picker}>Search for the {slot} planet</p>
+      <PlanetPicker slot={slot} otherName={otherName} excludedPlanetName={excludedPlanetName} />
     </div>
   );
 }
