@@ -1,6 +1,6 @@
 'use client';
 import { useRouter } from 'next/navigation';
-import { useId, useMemo, useState, type KeyboardEvent } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import type { PlanetSummary } from '@/lib/mockPlanets';
 import { planetMatcher } from '@/lib/planetFilters';
 import { measurement } from '@/lib/planetStats';
@@ -29,18 +29,24 @@ interface PlanetPickerProps {
 export default function PlanetPicker({ slot, otherName, excludedPlanetName }: PlanetPickerProps) {
   const router = useRouter();
   const id = useId();
+  const listboxRef = useRef<HTMLUListElement>(null);
   const [archive, setArchive] = useState<Archive>({ status: 'idle' });
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
-  const suggestions = useMemo(
-    () => (archive.status === 'loaded' ? suggest(archive.planets, query, excludedPlanetName) : []),
+  const matches = useMemo(
+    () => (archive.status === 'loaded' ? matching(archive.planets, query, excludedPlanetName) : []),
     [archive, query, excludedPlanetName]
   );
+  const suggestions = matches.slice(0, MAX_SUGGESTIONS);
   const expanded = open && suggestions.length > 0;
   // The list can shrink beneath a remembered index, so the active option is re-derived each render.
   const active = expanded && activeIndex !== null && activeIndex < suggestions.length ? activeIndex : null;
+
+  useEffect(() => {
+    if (active !== null) listboxRef.current?.children.item(active)?.scrollIntoView({ block: 'nearest' });
+  }, [active]);
 
   const inputId = `${id}-input`;
   const listboxId = `${id}-listbox`;
@@ -119,6 +125,7 @@ export default function PlanetPicker({ slot, otherName, excludedPlanetName }: Pl
         />
         {/* Pressing on the list must not blur the input, or it closes before the click lands. */}
         <ul
+          ref={listboxRef}
           id={listboxId}
           role="listbox"
           aria-label={`Suggestions for the ${slot} planet`}
@@ -145,22 +152,20 @@ export default function PlanetPicker({ slot, otherName, excludedPlanetName }: Pl
         </ul>
       </div>
       <p className={styles.status} role="status">
-        {statusLine(archive, query, suggestions.length)}
+        {statusLine(archive, query, matches.length)}
       </p>
     </div>
   );
 }
 
-function suggest(
+function matching(
   planets: PlanetSummary[],
   query: string,
   excludedPlanetName: string | null
 ): PlanetSummary[] {
   if (query.trim() === '') return [];
   const matches = planetMatcher(query);
-  return planets
-    .filter((planet) => planet.pl_name !== excludedPlanetName && matches(planet))
-    .slice(0, MAX_SUGGESTIONS);
+  return planets.filter((planet) => planet.pl_name !== excludedPlanetName && matches(planet));
 }
 
 function hint({ pl_rade, esi }: PlanetSummary): string | null {
@@ -170,12 +175,11 @@ function hint({ pl_rade, esi }: PlanetSummary): string | null {
   return known.length === 0 ? null : known.join(' · ');
 }
 
-function statusLine(archive: Archive, query: string, suggestionCount: number): string {
+function statusLine(archive: Archive, query: string, matchCount: number): string {
   if (archive.status === 'unavailable') return "Couldn't load the planet list. Try again in a moment.";
   if (archive.status === 'loading') return 'Loading the planet list…';
   const needle = query.trim();
-  if (archive.status === 'loaded' && needle !== '' && suggestionCount === 0) {
-    return `No planet or star matches “${needle}”`;
-  }
-  return '';
+  if (archive.status !== 'loaded' || needle === '') return '';
+  if (matchCount === 0) return `No planet or star matches “${needle}”`;
+  return matchCount === 1 ? '1 planet matches' : `${matchCount} planets match`;
 }

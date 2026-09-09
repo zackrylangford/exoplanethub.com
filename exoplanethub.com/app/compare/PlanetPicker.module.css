@@ -60,9 +60,15 @@
   cursor: pointer;
 }
 
-.option:hover,
+.option:hover {
+  background: var(--color-surface-alt);
+}
+
+/* The alt surface barely differs from the surface, so the keyboard-active option also gets the focus ring. */
 .option[aria-selected='true'] {
   background: var(--color-surface-alt);
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
 }
 
 .optionName {

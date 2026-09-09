@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -47,6 +48,14 @@ function renderPicker({ slot = 'first', otherName = null, excludedPlanetName = n
 
 function activeOptionId(input: HTMLElement) {
   return input.getAttribute('aria-activedescendant');
+}
+
+// jsdom cascades document stylesheets into getComputedStyle, so the module's CSS is tested as written.
+function loadStylesheet(relativePath: string) {
+  const style = document.createElement('style');
+  style.textContent = readFileSync(new URL(relativePath, import.meta.url), 'utf8');
+  document.head.appendChild(style);
+  return style;
 }
 
 beforeEach(() => {
@@ -154,12 +163,22 @@ describe('PlanetPicker suggestions', () => {
     expect(screen.getAllByRole('option')).toHaveLength(1);
   });
 
-  it('offers at most eight matches', async () => {
+  it('offers at most eight matches but counts them all in the status line', async () => {
     const { user, input } = renderPicker();
 
     await user.type(input, 'kepler-4');
 
     expect(await screen.findAllByRole('option')).toHaveLength(8);
+    expect(screen.getByRole('status')).toHaveTextContent('11 planets match');
+  });
+
+  it('counts a single match in the singular', async () => {
+    const { user, input } = renderPicker();
+
+    await user.type(input, 'dimidium');
+
+    expect(await screen.findByRole('option')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('1 planet matches');
   });
 
   it("never offers the other column's planet", async () => {
@@ -275,6 +294,46 @@ describe('PlanetPicker keyboard', () => {
     await user.tab();
 
     expect(screen.queryByRole('listbox')).toBeNull();
+  });
+
+  it('scrolls the active option into view as the arrow keys move', async () => {
+    const scrollIntoView = vi.spyOn(Element.prototype, 'scrollIntoView');
+    const { user, input } = renderPicker();
+
+    await user.type(input, 'kepler-4');
+    const options = await screen.findAllByRole('option');
+    await user.keyboard('{ArrowUp}');
+
+    expect(scrollIntoView).toHaveBeenLastCalledWith({ block: 'nearest' });
+    expect(scrollIntoView.mock.contexts.at(-1)).toBe(options[options.length - 1]);
+    scrollIntoView.mockRestore();
+  });
+});
+
+describe('PlanetPicker appearance', () => {
+  let stylesheet: HTMLStyleElement;
+
+  beforeEach(() => {
+    stylesheet = loadStylesheet('./PlanetPicker.module.css');
+  });
+
+  afterEach(() => {
+    stylesheet.remove();
+  });
+
+  it('rings the keyboard-active option in the primary colour, not only a background tint', async () => {
+    const { user, input } = renderPicker();
+
+    await user.type(input, 'trappist');
+    const [first, second] = await screen.findAllByRole('option');
+    await user.keyboard('{ArrowDown}');
+
+    expect(getComputedStyle(first).outline).toMatch(/solid var\(--color-primary\)/);
+    expect(getComputedStyle(second).outline).toBe('');
+
+    await user.keyboard('{ArrowDown}');
+    expect(getComputedStyle(first).outline).toBe('');
+    expect(getComputedStyle(second).outline).toMatch(/solid var\(--color-primary\)/);
   });
 });
 
