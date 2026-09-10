@@ -95,7 +95,7 @@
 
   .links {
     position: fixed;
-    top: 73px;
+    top: var(--nav-height);
     left: 0;
     right: 0;
     flex-direction: column;

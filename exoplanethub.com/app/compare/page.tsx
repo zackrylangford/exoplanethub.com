@@ -11,7 +11,8 @@ import {
 import { SITE_NAME } from '@/lib/site';
 import ColumnCard from './ColumnCard';
 import ComparisonTable, { type ColumnNames } from './ComparisonTable';
-import EmptySlot, { type Slot } from './EmptySlot';
+import EmptySlot from './EmptySlot';
+import { type Slot } from './PlanetPicker';
 import VerdictHeadline from './VerdictHeadline';
 import styles from './page.module.css';
 
@@ -136,28 +137,35 @@ export default async function ComparePage({ searchParams }: ComparePageProps) {
 function ColumnStrip({ a, b }: Columns) {
   return (
     <div className={styles.strip}>
-      <ColumnIdentity column={a} slot="first" changeHref={compareUrl(null, b.name)} />
+      <ColumnIdentity column={a} other={b} slot="first" changeHref={compareUrl(null, b.name)} />
       {a.name !== null && b.name !== null && (
         <Link className={styles.swap} href={compareUrl(b.name, a.name)}>
           Swap
         </Link>
       )}
-      <ColumnIdentity column={b} slot="second" changeHref={compareUrl(a.name, null)} />
+      <ColumnIdentity column={b} other={a} slot="second" changeHref={compareUrl(a.name, null)} />
     </div>
   );
 }
 
 function ColumnIdentity({
   column: { name, found },
+  other,
   slot,
   changeHref,
 }: {
   column: Column;
+  other: Column;
   slot: Slot;
   changeHref: string;
 }) {
   return found === null ? (
-    <EmptySlot slot={slot} unknownName={name} />
+    <EmptySlot
+      slot={slot}
+      unknownName={name}
+      otherName={other.name}
+      excludedPlanetName={other.found?.planet.pl_name ?? null}
+    />
   ) : (
     <ColumnCard found={found} changeHref={changeHref} />
   );

@@ -1,0 +1,426 @@
+import { readFileSync } from 'node:fs';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { PlanetSummary } from '@/lib/mockPlanets';
+import PlanetPicker, { type Slot } from './PlanetPicker';
+
+const { push, loadPlanetArchive } = vi.hoisted(() => ({ push: vi.fn(), loadPlanetArchive: vi.fn() }));
+
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
+vi.mock('./planetArchive', () => ({ loadPlanetArchive }));
+
+function summary(pl_name: string, fields: Partial<PlanetSummary> = {}): PlanetSummary {
+  return {
+    pl_name,
+    hostname: null,
+    sy_dist: null,
+    discoverymethod: null,
+    disc_year: null,
+    pl_orbper: null,
+    pl_rade: null,
+    pl_bmasse: null,
+    pl_eqt: null,
+    st_teff: null,
+    ...fields,
+  };
+}
+
+const KEPLER_452B = summary('Kepler-452 b', { hostname: 'Kepler-452', pl_rade: 1.63, esi: 83 });
+const TRAPPIST_1E = summary('TRAPPIST-1 e', { hostname: 'TRAPPIST-1', pl_rade: 0.92, esi: 85 });
+const TRAPPIST_1F = summary('TRAPPIST-1 f', { hostname: 'TRAPPIST-1', pl_rade: 1.05 });
+const DIMIDIUM = summary('Dimidium', { hostname: 'Helvetios' });
+const NAME_ONLY = summary('HD 000001 b');
+const KEPLER_40S = Array.from({ length: 10 }, (_, index) => summary(`Kepler-4${index} b`));
+
+const ARCHIVE = [KEPLER_452B, TRAPPIST_1E, TRAPPIST_1F, DIMIDIUM, NAME_ONLY, ...KEPLER_40S];
+
+interface PickerProps {
+  slot?: Slot;
+  otherName?: string | null;
+  excludedPlanetName?: string | null;
+}
+
+function renderPicker({ slot = 'first', otherName = null, excludedPlanetName = null }: PickerProps = {}) {
+  render(<PlanetPicker slot={slot} otherName={otherName} excludedPlanetName={excludedPlanetName} />);
+  return { user: userEvent.setup(), input: screen.getByRole('combobox') };
+}
+
+function activeOptionId(input: HTMLElement) {
+  return input.getAttribute('aria-activedescendant');
+}
+
+// The seen status and its spoken twin share one paragraph; only the twin is the live region.
+function status() {
+  const announcement = screen.getByRole('status');
+  return { seen: announcement.previousElementSibling as HTMLElement, announcement };
+}
+
+// jsdom cascades document stylesheets into getComputedStyle, so the module's CSS is tested as written.
+function loadStylesheet(relativePath: string) {
+  const style = document.createElement('style');
+  style.textContent = readFileSync(new URL(relativePath, import.meta.url), 'utf8');
+  document.head.appendChild(style);
+  return style;
+}
+
+beforeEach(() => {
+  loadPlanetArchive.mockResolvedValue(ARCHIVE);
+});
+
+afterEach(() => {
+  vi.clearAllMocks();
+});
+
+describe('PlanetPicker naming', () => {
+  it.each([
+    ['first', 'Search for the first planet'],
+    ['second', 'Search for the second planet'],
+  ] as const)('names the %s picker by pick order, not by side', (slot, name) => {
+    renderPicker({ slot });
+
+    expect(screen.getByRole('combobox', { name })).toBeInTheDocument();
+  });
+
+  it('gives two pickers on one page distinct input, listbox and option ids', async () => {
+    render(
+      <>
+        <PlanetPicker slot="first" otherName={null} excludedPlanetName={null} />
+        <PlanetPicker slot="second" otherName={null} excludedPlanetName={null} />
+      </>
+    );
+    const user = userEvent.setup();
+    const [first, second] = screen.getAllByRole('combobox');
+
+    await user.type(first, 'trappist');
+    const firstOptionIds = (await screen.findAllByRole('option')).map((option) => option.id);
+    await user.type(second, 'trappist');
+    const secondOptionIds = (await screen.findAllByRole('option')).map((option) => option.id);
+
+    expect(first.id).not.toBe('');
+    expect(first.id).not.toBe(second.id);
+    expect(first.getAttribute('aria-controls')).not.toBe(second.getAttribute('aria-controls'));
+    expect(firstOptionIds.every((id) => id !== '' && !secondOptionIds.includes(id))).toBe(true);
+  });
+});
+
+describe('PlanetPicker archive loading', () => {
+  it('asks for the archive on first focus, not on mount, and never again', async () => {
+    const { user, input } = renderPicker();
+
+    expect(loadPlanetArchive).not.toHaveBeenCalled();
+    await user.click(input);
+    expect(loadPlanetArchive).toHaveBeenCalledTimes(1);
+
+    await user.tab();
+    await user.click(input);
+    await user.type(input, 'k');
+    expect(loadPlanetArchive).toHaveBeenCalledTimes(1);
+  });
+
+  it('says the list is loading while the archive is on its way', async () => {
+    loadPlanetArchive.mockReturnValue(new Promise(() => {}));
+    const { user, input } = renderPicker();
+
+    await user.click(input);
+
+    expect(status().seen).toHaveTextContent('Loading the planet list…');
+    expect(screen.queryByRole('listbox')).toBeNull();
+  });
+
+  it('keeps the box usable, says so, and retries on the next keystroke when the archive will not load', async () => {
+    loadPlanetArchive.mockRejectedValue(new Error('down'));
+    const { user, input } = renderPicker();
+
+    await user.type(input, 'k');
+
+    expect(await screen.findByText("Couldn't load the planet list. Try again in a moment.")).toBeInTheDocument();
+    expect(input).toHaveValue('k');
+    expect(screen.queryByRole('listbox')).toBeNull();
+
+    const failedAttempts = loadPlanetArchive.mock.calls.length;
+    loadPlanetArchive.mockResolvedValue(ARCHIVE);
+    await user.type(input, 'e');
+    await screen.findByRole('listbox');
+    await user.type(input, 'pler-452');
+
+    expect(screen.getByRole('option', { name: /Kepler-452 b/ })).toBeInTheDocument();
+    expect(loadPlanetArchive).toHaveBeenCalledTimes(failedAttempts + 1);
+  });
+});
+
+describe('PlanetPicker suggestions', () => {
+  it('lists nothing until something is typed', async () => {
+    const { user, input } = renderPicker();
+
+    await user.type(input, '  ');
+
+    expect(screen.queryByRole('listbox')).toBeNull();
+    expect(input).toHaveAttribute('aria-expanded', 'false');
+    expect(status().seen).toBeEmptyDOMElement();
+  });
+
+  it("matches planet or host name by explore's rule, from the raw typed text", async () => {
+    const { user, input } = renderPicker();
+
+    await user.type(input, '  HELVETIOS ');
+
+    expect(await screen.findByRole('option', { name: /Dimidium/ })).toBeInTheDocument();
+    expect(screen.getAllByRole('option')).toHaveLength(1);
+  });
+
+  it('offers at most eight matches and says how many of how many it is showing', async () => {
+    const { user, input } = renderPicker();
+
+    await user.type(input, 'kepler-4');
+
+    expect(await screen.findAllByRole('option')).toHaveLength(8);
+    expect(status().seen).toHaveTextContent('Showing 8 of 11 planets');
+  });
+
+  it('counts a single match in the singular', async () => {
+    const { user, input } = renderPicker();
+
+    await user.type(input, 'dimidium');
+
+    expect(await screen.findByRole('option')).toBeInTheDocument();
+    expect(status().seen).toHaveTextContent(/^Showing 1 of 1 planet$/);
+  });
+
+  it('drops the count with the list, so "showing" never describes a closed list', async () => {
+    const { user, input } = renderPicker();
+
+    await user.type(input, 'trappist');
+    await screen.findByRole('listbox');
+    expect(status().seen).toHaveTextContent('Showing 2 of 2 planets');
+
+    await user.keyboard('{Escape}');
+    expect(status().seen).toBeEmptyDOMElement();
+
+    await user.keyboard('{ArrowDown}');
+    expect(status().seen).toHaveTextContent('Showing 2 of 2 planets');
+  });
+
+  it("never offers the other column's planet", async () => {
+    const { user, input } = renderPicker({ excludedPlanetName: 'TRAPPIST-1 e' });
+
+    await user.type(input, 'trappist');
+
+    expect(await screen.findByRole('option', { name: /TRAPPIST-1 f/ })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: /TRAPPIST-1 e/ })).toBeNull();
+  });
+
+  it('hints each suggestion with the stats it has measured', async () => {
+    const { user, input } = renderPicker();
+
+    await user.type(input, 'kepler-452');
+    expect(await screen.findByRole('option')).toHaveTextContent('Kepler-452 bRadius 1.63 × Earth · ESI 83');
+
+    await user.clear(input);
+    await user.type(input, 'trappist-1 f');
+    expect(await screen.findByRole('option')).toHaveTextContent(/^TRAPPIST-1 fRadius 1.05 × Earth$/);
+
+    await user.clear(input);
+    await user.type(input, 'hd 000001');
+    expect(await screen.findByRole('option')).toHaveTextContent(/^HD 000001 b$/);
+  });
+
+  it('says when nothing matches instead of showing an empty list', async () => {
+    const { user, input } = renderPicker();
+
+    await user.type(input, 'zzz ');
+
+    expect(await screen.findByText('No planet or star matches “zzz”')).toBeInTheDocument();
+    expect(screen.queryByRole('listbox')).toBeNull();
+    expect(input).toHaveAttribute('aria-expanded', 'false');
+  });
+});
+
+describe('PlanetPicker announcements', () => {
+  it('keeps the seen status from being read twice by hiding it from the announcement', async () => {
+    const { user, input } = renderPicker();
+
+    await user.type(input, 'trappist');
+    await screen.findByRole('listbox');
+
+    expect(status().seen).toHaveAttribute('aria-hidden', 'true');
+    expect(status().seen).toHaveTextContent('Showing 2 of 2 planets');
+  });
+
+  it('speaks the count only once the typing has settled, not on each keystroke', async () => {
+    const { user, input } = renderPicker();
+
+    await user.type(input, 'kepler-4');
+    await screen.findAllByRole('option');
+
+    expect(status().seen).toHaveTextContent('Showing 8 of 11 planets');
+    expect(status().announcement).toBeEmptyDOMElement();
+
+    await waitFor(() => expect(status().announcement).toHaveTextContent('Showing 8 of 11 planets'));
+  });
+
+  it('never speaks a half-typed needle back at the visitor', async () => {
+    const { user, input } = renderPicker();
+
+    await user.type(input, 'zzz');
+    await waitFor(() => expect(status().seen).toHaveTextContent('No planet or star matches “zzz”'));
+
+    expect(status().announcement).toBeEmptyDOMElement();
+
+    await waitFor(() => expect(status().announcement).toHaveTextContent('No planet or star matches “zzz”'));
+  });
+});
+
+describe('PlanetPicker keyboard', () => {
+  it('walks the list with the arrow keys, wrapping, and selects the active option with Enter', async () => {
+    const { user, input } = renderPicker({ slot: 'second', otherName: 'Kepler-452 b' });
+
+    await user.type(input, 'trappist');
+    const [first, second] = await screen.findAllByRole('option');
+
+    expect(input).toHaveAttribute('aria-expanded', 'true');
+    expect(input).toHaveAttribute('aria-controls', screen.getByRole('listbox').id);
+    expect(activeOptionId(input)).toBeNull();
+
+    await user.keyboard('{ArrowDown}');
+    expect(activeOptionId(input)).toBe(first.id);
+    expect(first).toHaveAttribute('aria-selected', 'true');
+    expect(second).toHaveAttribute('aria-selected', 'false');
+
+    await user.keyboard('{ArrowDown}');
+    expect(activeOptionId(input)).toBe(second.id);
+    expect(first).toHaveAttribute('aria-selected', 'false');
+
+    await user.keyboard('{ArrowDown}');
+    expect(activeOptionId(input)).toBe(first.id);
+
+    await user.keyboard('{ArrowUp}');
+    expect(activeOptionId(input)).toBe(second.id);
+
+    await user.keyboard('{Enter}');
+    expect(push).toHaveBeenCalledWith('/compare?a=Kepler-452%20b&b=TRAPPIST-1%20f');
+  });
+
+  it('does not navigate on Enter until an option is active', async () => {
+    const { user, input } = renderPicker();
+
+    await user.type(input, 'trappist');
+    await screen.findByRole('listbox');
+    await user.keyboard('{Enter}');
+
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it('closes the list on Escape, keeps the text, and reopens from the end on ArrowUp', async () => {
+    const { user, input } = renderPicker();
+
+    await user.type(input, 'trappist');
+    await screen.findByRole('listbox');
+    await user.keyboard('{Escape}');
+
+    expect(screen.queryByRole('listbox')).toBeNull();
+    expect(input).toHaveAttribute('aria-expanded', 'false');
+    expect(activeOptionId(input)).toBeNull();
+    expect(input).toHaveValue('trappist');
+
+    await user.keyboard('{ArrowUp}');
+    const options = screen.getAllByRole('option');
+    expect(activeOptionId(input)).toBe(options[options.length - 1].id);
+  });
+
+  it('forgets the active option when the text changes', async () => {
+    const { user, input } = renderPicker();
+
+    await user.type(input, 'trappist');
+    await screen.findByRole('listbox');
+    await user.keyboard('{ArrowDown}');
+    expect(activeOptionId(input)).not.toBeNull();
+
+    await user.type(input, '-1 f');
+    expect(activeOptionId(input)).toBeNull();
+    expect(screen.getAllByRole('option')).toHaveLength(1);
+  });
+
+  it('closes the list when focus leaves the box', async () => {
+    const { user, input } = renderPicker();
+
+    await user.type(input, 'trappist');
+    await screen.findByRole('listbox');
+    await user.tab();
+
+    expect(screen.queryByRole('listbox')).toBeNull();
+  });
+
+  it('scrolls the active option into view as the arrow keys move', async () => {
+    const scrollIntoView = vi.spyOn(Element.prototype, 'scrollIntoView');
+    const { user, input } = renderPicker();
+
+    await user.type(input, 'kepler-4');
+    const options = await screen.findAllByRole('option');
+    await user.keyboard('{ArrowUp}');
+
+    expect(scrollIntoView).toHaveBeenLastCalledWith({ block: 'nearest' });
+    expect(scrollIntoView.mock.contexts.at(-1)).toBe(options[options.length - 1]);
+    scrollIntoView.mockRestore();
+  });
+});
+
+describe('PlanetPicker appearance', () => {
+  let stylesheet: HTMLStyleElement;
+
+  beforeEach(() => {
+    stylesheet = loadStylesheet('./PlanetPicker.module.css');
+  });
+
+  afterEach(() => {
+    stylesheet.remove();
+  });
+
+  it('rings the keyboard-active option in the primary colour, not only a background tint', async () => {
+    const { user, input } = renderPicker();
+
+    await user.type(input, 'trappist');
+    const [first, second] = await screen.findAllByRole('option');
+    await user.keyboard('{ArrowDown}');
+
+    expect(getComputedStyle(first).outline).toMatch(/solid var\(--color-primary\)/);
+    expect(getComputedStyle(second).outline).toBe('');
+
+    await user.keyboard('{ArrowDown}');
+    expect(getComputedStyle(first).outline).toBe('');
+    expect(getComputedStyle(second).outline).toMatch(/solid var\(--color-primary\)/);
+  });
+});
+
+describe('PlanetPicker selection', () => {
+  it('reaches the same option by mouse as by keyboard', async () => {
+    const { user, input } = renderPicker({ otherName: 'TRAPPIST-1 e' });
+
+    await user.type(input, 'kepler-452');
+    const option = await screen.findByRole('option', { name: /Kepler-452 b/ });
+    await user.keyboard('{ArrowDown}');
+    expect(activeOptionId(input)).toBe(option.id);
+
+    await user.click(option);
+
+    expect(push).toHaveBeenCalledTimes(1);
+    expect(push).toHaveBeenCalledWith('/compare?a=Kepler-452%20b&b=TRAPPIST-1%20e');
+  });
+
+  it.each([
+    ['first', null, '/compare?a=Kepler-452%20b'],
+    ['second', null, '/compare?b=Kepler-452%20b'],
+    ['first', 'TRAPPIST-1 e', '/compare?a=Kepler-452%20b&b=TRAPPIST-1%20e'],
+    ['second', 'Kepler-999 z', '/compare?a=Kepler-999%20z&b=Kepler-452%20b'],
+  ] as const)(
+    'fills the %s column of the URL beside the other column as the URL spelt it (%s)',
+    async (slot, otherName, url) => {
+      const { user, input } = renderPicker({ slot, otherName });
+
+      await user.type(input, 'kepler-452');
+      await user.click(await screen.findByRole('option', { name: /Kepler-452 b/ }));
+
+      expect(push).toHaveBeenCalledWith(url);
+    }
+  );
+});

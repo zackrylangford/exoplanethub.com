@@ -1,13 +1,20 @@
 import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Planet } from '@/lib/mockPlanets';
 import { comparePlanets } from '@/lib/planetComparison';
 import type { FoundPlanet } from '@/lib/planetDetail';
 import ComparePage, { generateMetadata } from './page';
 
-const { findPlanet } = vi.hoisted(() => ({ findPlanet: vi.fn() }));
+const { findPlanet, loadPlanetArchive, push } = vi.hoisted(() => ({
+  findPlanet: vi.fn(),
+  loadPlanetArchive: vi.fn(),
+  push: vi.fn(),
+}));
 
 vi.mock('@/lib/planetDetail', () => ({ findPlanet }));
+vi.mock('./planetArchive', () => ({ loadPlanetArchive }));
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
 
 const NAME_ONLY: Planet = {
   pl_name: 'HD 000001 b',
@@ -87,6 +94,14 @@ function cardOf(planetName: string) {
   return screen.getByRole('heading', { level: 2, name: planetName }).parentElement as HTMLElement;
 }
 
+function picker(slot: 'first' | 'second') {
+  return screen.getByRole('combobox', { name: `Search for the ${slot} planet` });
+}
+
+function pickerIfAny(slot: 'first' | 'second') {
+  return screen.queryByRole('combobox', { name: `Search for the ${slot} planet` });
+}
+
 function swapLink() {
   return screen.queryByRole('link', { name: 'Swap' });
 }
@@ -114,8 +129,8 @@ describe('ComparePage with nothing chosen', () => {
 
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Compare planets');
-    expect(screen.getByText('Search for the first planet')).toBeInTheDocument();
-    expect(screen.getByText('Search for the second planet')).toBeInTheDocument();
+    expect(picker('first')).toBeInTheDocument();
+    expect(picker('second')).toBeInTheDocument();
     expect(screen.queryByRole('heading', { level: 2 })).toBeNull();
     expect(findPlanet).not.toHaveBeenCalled();
   });
@@ -134,8 +149,8 @@ describe('ComparePage with one planet', () => {
 
     expect(findPlanet.mock.calls).toEqual([['Kepler-452 b']]);
     expect(columnHeadings()).toEqual(['Kepler-452 b']);
-    expect(screen.getByText('Search for the second planet')).toBeInTheDocument();
-    expect(screen.queryByText('Search for the first planet')).toBeNull();
+    expect(picker('second')).toBeInTheDocument();
+    expect(pickerIfAny('first')).toBeNull();
   });
 
   it('links the card to the planet page and badges its score', async () => {
@@ -166,7 +181,7 @@ describe('ComparePage with one planet', () => {
   it('keeps a planet named as b in the right-hand column', async () => {
     await renderPage({ b: 'Kepler-452 b' });
 
-    expect(precedes(screen.getByText('Search for the first planet'), cardOf('Kepler-452 b'))).toBe(true);
+    expect(precedes(picker('first'), cardOf('Kepler-452 b'))).toBe(true);
     expect(screen.getByText('Pick a second planet to compare with Kepler-452 b')).toBeInTheDocument();
     expect(swapLink()).toBeNull();
   });
@@ -177,7 +192,7 @@ describe('ComparePage with a name the archive lacks', () => {
     await renderPage({ a: 'Kepler-999 z', b: 'Kepler-452 b' });
 
     expect(screen.getByText("We don't have a planet called Kepler-999 z")).toBeInTheDocument();
-    expect(screen.getByText('Search for the first planet')).toBeInTheDocument();
+    expect(picker('first')).toBeInTheDocument();
     expect(columnHeadings()).toEqual(['Kepler-452 b']);
   });
 
@@ -277,7 +292,7 @@ describe('ComparePage param rules', () => {
     await renderPage({ a: ['Kepler-452 b', 'TRAPPIST-1 e'] });
 
     expect(findPlanet).not.toHaveBeenCalled();
-    expect(screen.getByText('Search for the first planet')).toBeInTheDocument();
+    expect(picker('first')).toBeInTheDocument();
   });
 
   it('reads b naming the same planet as a as not yet picked', async () => {
@@ -285,7 +300,7 @@ describe('ComparePage param rules', () => {
 
     expect(findPlanet.mock.calls).toEqual([['Kepler-452 b']]);
     expect(columnHeadings()).toEqual(['Kepler-452 b']);
-    expect(screen.getByText('Search for the second planet')).toBeInTheDocument();
+    expect(picker('second')).toBeInTheDocument();
     expect(swapLink()).toBeNull();
   });
 
@@ -365,5 +380,51 @@ describe('ComparePage metadata', () => {
       ['Kepler-452 b'],
       ['TRAPPIST-1 e'],
     ]);
+  });
+});
+
+describe('ComparePage pickers', () => {
+  beforeEach(() => {
+    push.mockReset();
+    loadPlanetArchive.mockReset();
+    loadPlanetArchive.mockResolvedValue([KEPLER_452B, TRAPPIST_1E]);
+  });
+
+  it('leaves the archive list alone until a picker is focused', async () => {
+    await renderPage({});
+
+    expect(loadPlanetArchive).not.toHaveBeenCalled();
+  });
+
+  it("completes the pair from the second picker without ever offering the first column's planet", async () => {
+    await renderPage({ a: 'Kepler-452 b' });
+    const user = userEvent.setup();
+
+    await user.type(picker('second'), 'e');
+    const option = await screen.findByRole('option', { name: /TRAPPIST-1 e/ });
+
+    expect(screen.queryByRole('option', { name: /Kepler-452 b/ })).toBeNull();
+    await user.click(option);
+    expect(push).toHaveBeenCalledWith('/compare?a=Kepler-452%20b&b=TRAPPIST-1%20e');
+  });
+
+  it('fills the first column from the first picker and keeps the second as the URL named it', async () => {
+    await renderPage({ b: 'TRAPPIST-1 e' });
+    const user = userEvent.setup();
+
+    await user.type(picker('first'), 'kepler');
+    await user.click(await screen.findByRole('option', { name: /Kepler-452 b/ }));
+
+    expect(push).toHaveBeenCalledWith('/compare?a=Kepler-452%20b&b=TRAPPIST-1%20e');
+  });
+
+  it('keeps an unknown name in the URL when the other picker completes the pair', async () => {
+    await renderPage({ a: 'Kepler-999 z' });
+    const user = userEvent.setup();
+
+    await user.type(picker('second'), 'trappist');
+    await user.click(await screen.findByRole('option', { name: /TRAPPIST-1 e/ }));
+
+    expect(push).toHaveBeenCalledWith('/compare?a=Kepler-999%20z&b=TRAPPIST-1%20e');
   });
 });

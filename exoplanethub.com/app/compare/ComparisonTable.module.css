@@ -10,10 +10,9 @@
   background: var(--color-surface);
 }
 
-/* Clears the fixed NavBar, whose mobile menu already pins its height at 73px. */
 .head {
   position: sticky;
-  top: 73px;
+  top: var(--nav-height);
   z-index: 1;
 }
 
