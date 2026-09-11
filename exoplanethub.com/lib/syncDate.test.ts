@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { formatSyncDate } from '@/lib/syncDate';
+import { formatSyncDate, parseSyncDate } from '@/lib/syncDate';
 
 describe('formatSyncDate', () => {
   afterEach(() => {
@@ -30,5 +30,15 @@ describe('formatSyncDate', () => {
   it('gives no date for a stamp it cannot parse', () => {
     expect(formatSyncDate('not a timestamp')).toBeNull();
     expect(formatSyncDate('')).toBeNull();
+  });
+});
+
+describe('parseSyncDate', () => {
+  it('reads an offset-less stamp as a UTC instant, so stamps can be ordered', () => {
+    expect(parseSyncDate('2026-09-01T03:00:12')?.toISOString()).toBe('2026-09-01T03:00:12.000Z');
+  });
+
+  it('gives no date for a stamp it cannot parse', () => {
+    expect(parseSyncDate('not a timestamp')).toBeNull();
   });
 });

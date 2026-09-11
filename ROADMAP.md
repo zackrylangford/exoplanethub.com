@@ -62,6 +62,17 @@ them as the second feed derived from the sync's diff rather than written by hand
 - Homepage strip of the three most recently changed records, linking to `/records`
 - "Most Earth-like" framed as closest to Earth's conditions, explicitly not "habitable"
 
+### 6. Archive at a Glance
+One calm line under the homepage hero saying how many confirmed planets and systems the archive
+holds and when it was last synced, so a first-time visitor sees its size, and that the data is
+alive, before scrolling.
+
+**Tasks:**
+- One projected Scan an hour shared by every request, the same bound the sitemap already uses
+- Distinct host stars counted as systems; a planet with a blank host counts, its system does not
+- Absolute sync date in the planet pages' voice, dropped rather than mangled when the stamp cannot be read
+- Renders nothing for an empty or unreadable archive rather than announcing zero
+
 ## Future Ideas
 
 - 3D visualization of exoplanet systems

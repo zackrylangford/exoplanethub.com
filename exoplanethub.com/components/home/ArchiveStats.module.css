@@ -1,0 +1,44 @@
+.line {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 28px 24px;
+  font-size: 18px;
+  line-height: 1.65;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.figure {
+  font-weight: 600;
+  color: var(--color-text);
+  white-space: nowrap;
+}
+
+.skeleton {
+  display: inline-block;
+  height: 1em;
+  vertical-align: middle;
+  border-radius: 999px;
+  background: var(--color-border);
+  opacity: 0.5;
+}
+
+/* Sized to the sentence's three clauses so the bars wrap where the words will. */
+.skeleton:nth-child(1) {
+  width: 26ch;
+}
+
+.skeleton:nth-child(2) {
+  width: 12ch;
+}
+
+.skeleton:nth-child(3) {
+  width: 26ch;
+}
+
+@media (max-width: 768px) {
+  .line {
+    font-size: 16px;
+    padding: 24px;
+  }
+}
