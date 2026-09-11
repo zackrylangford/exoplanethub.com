@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { PlanetSummary } from '@/lib/mockPlanets';
 import { planetKeyStats } from '@/lib/planetStats';
-import { planetUrl } from '@/lib/planetUrl';
+import { compareUrl, planetUrl } from '@/lib/planetUrl';
 import ModalDialog from '@/components/ui/ModalDialog';
 import styles from './PlanetModal.module.css';
 
@@ -35,9 +35,14 @@ export default function PlanetModal({ planet, onClose }: PlanetModalProps) {
           </div>
         </div>
 
-        <Link className={styles.fullProfile} href={planetUrl(planet.pl_name)}>
-          View full profile
-        </Link>
+        <div className={styles.actions}>
+          <Link className={styles.action} href={planetUrl(planet.pl_name)}>
+            View full profile
+          </Link>
+          <Link className={styles.action} href={compareUrl(planet.pl_name, null)}>
+            Compare
+          </Link>
+        </div>
       </div>
     </ModalDialog>
   );

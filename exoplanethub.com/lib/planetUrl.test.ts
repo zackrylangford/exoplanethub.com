@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { planetNameFromParam, planetUrl } from '@/lib/planetUrl';
+import {
+  compareUrl,
+  FIRST_COLUMN_PARAM,
+  planetNameFromParam,
+  planetUrl,
+  SECOND_COLUMN_PARAM,
+} from '@/lib/planetUrl';
 
 // Archive names carry every character class the URL layer has to survive.
 const ARCHIVE_NAMES = [
@@ -13,6 +19,11 @@ const ARCHIVE_NAMES = [
 
 function routeSegmentOf(url: string) {
   return url.slice('/planet/'.length);
+}
+
+// Next hands a page its searchParams form-decoded, which is exactly what URLSearchParams does.
+function queryParamOf(url: string, param: string): string {
+  return new URL(url, 'https://exoplanethub.test').searchParams.get(param) ?? '';
 }
 
 describe('planetUrl', () => {
@@ -54,5 +65,43 @@ describe('planetNameFromParam rejections', () => {
     expect(planetNameFromParam('K'.repeat(80))).toHaveLength(80);
     expect(planetNameFromParam('K'.repeat(81))).toBeNull();
     expect(planetNameFromParam(encodeURIComponent('Your account is locked. '.repeat(10)))).toBeNull();
+  });
+});
+
+describe('compareUrl', () => {
+  it('addresses a bare /compare when neither column is chosen', () => {
+    expect(compareUrl(null, null)).toBe('/compare');
+  });
+
+  it('carries only the chosen column, under its own param', () => {
+    expect(compareUrl('Kepler-452 b', null)).toBe('/compare?a=Kepler-452%20b');
+    expect(compareUrl(null, 'Kepler-452 b')).toBe('/compare?b=Kepler-452%20b');
+  });
+
+  it('puts a before b, so the URL states the column order', () => {
+    expect(compareUrl('Kepler-452 b', 'TRAPPIST-1 e')).toBe(
+      '/compare?a=Kepler-452%20b&b=TRAPPIST-1%20e'
+    );
+  });
+
+  // Left bare, the '+' would be form-decoded to a space and the archive would be asked for "PSR B1257 12 c".
+  it('escapes the plus sign that a designation may carry', () => {
+    expect(compareUrl('PSR B1257+12 c', null)).toBe('/compare?a=PSR%20B1257%2B12%20c');
+  });
+
+  it('escapes an ampersand rather than letting a name start a second param', () => {
+    const url = compareUrl('A&b=B c', null);
+
+    expect(queryParamOf(url, 'a')).toBe('A&b=B c');
+    expect(queryParamOf(url, 'b')).toBe('');
+  });
+});
+
+describe('compareUrl and planetNameFromParam round trip', () => {
+  it.each(ARCHIVE_NAMES)('recovers %s exactly from either column', (name) => {
+    const url = compareUrl(name, name);
+
+    expect(planetNameFromParam(queryParamOf(url, FIRST_COLUMN_PARAM))).toBe(name);
+    expect(planetNameFromParam(queryParamOf(url, SECOND_COLUMN_PARAM))).toBe(name);
   });
 });

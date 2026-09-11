@@ -1,0 +1,176 @@
+.table {
+  width: 100%;
+  margin-top: 32px;
+  padding-bottom: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+  background: var(--color-surface);
+}
+
+.head {
+  position: sticky;
+  top: var(--nav-height);
+  z-index: 1;
+}
+
+.head th {
+  padding: 14px 16px;
+  background: var(--color-surface-alt);
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+  vertical-align: baseline;
+}
+
+.head th:first-child {
+  border-top-left-radius: 15px;
+}
+
+.head th:last-child {
+  border-top-right-radius: 15px;
+}
+
+.corner {
+  width: 36%;
+}
+
+.planetLink {
+  font-family: var(--font-heading);
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+.planetLink:hover {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+.planetLink:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+
+.sectionTitle {
+  padding: 28px 16px 8px;
+  font-family: var(--font-heading);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--color-text);
+  text-align: left;
+}
+
+.label {
+  padding: 12px 16px;
+  border-top: 1px solid var(--color-border);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  text-align: left;
+  vertical-align: top;
+}
+
+.value {
+  padding: 12px 16px;
+  border-top: 1px solid var(--color-border);
+  font-size: 17px;
+  line-height: 1.4;
+  color: var(--color-text);
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.notMeasured {
+  color: var(--color-text-muted);
+}
+
+.ratio {
+  display: block;
+  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.note {
+  padding: 12px 16px 20px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Two value columns stay side by side; the label moves above them. Roles carry what grid drops. */
+@media (max-width: 560px) {
+  .table,
+  .head,
+  .body {
+    display: block;
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .head {
+    background: var(--color-surface-alt);
+    border-radius: 15px 15px 0 0;
+  }
+
+  .head th {
+    background: none;
+    border-radius: 0;
+    padding: 12px;
+  }
+
+  .planetLink {
+    font-size: 15px;
+  }
+
+  .head .corner {
+    grid-column: 1 / -1;
+    width: auto;
+    padding: 0;
+    border: 0;
+  }
+
+  .sectionTitle,
+  .label,
+  .note {
+    grid-column: 1 / -1;
+  }
+
+  .sectionTitle {
+    padding: 24px 12px 6px;
+  }
+
+  .label {
+    padding: 12px 12px 2px;
+  }
+
+  .value {
+    padding: 2px 12px 12px;
+    border-top: 0;
+    font-size: 16px;
+  }
+
+  .note {
+    padding: 8px 12px 16px;
+  }
+}

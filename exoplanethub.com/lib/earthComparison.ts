@@ -20,13 +20,13 @@ const PROPORTION = new Intl.NumberFormat('en-US', { style: 'percent', maximumSig
 
 // Two significant digits would round a 267-day orbit to 270, a number the archive never held and one
 // the Planet section contradicts further down the same page.
-function amount(value: number): string {
+export function amount(value: number): string {
   return (value >= 10 ? WHOLE : FEW).format(value);
 }
 
 // Ratios, kelvin and orbital periods are positive by definition, so a stored zero or negative is a
 // corrupt row rather than a measurement, and reads as unknown.
-function isComparable(value: number | null | undefined): value is number {
+export function isComparable(value: number | null | undefined): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value > 0;
 }
 

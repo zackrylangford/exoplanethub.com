@@ -7,7 +7,7 @@ import { measurement } from '@/lib/planetStats';
 import { Pagination } from '@/lib/usePagination';
 import ESIInfoButton from './ESIInfoButton';
 import PaginationControls from './PaginationControls';
-import { getESIBand } from './esiBands';
+import { getESIBand } from '@/lib/esiBands';
 import styles from './PlanetTable.module.css';
 
 interface PlanetTableProps {

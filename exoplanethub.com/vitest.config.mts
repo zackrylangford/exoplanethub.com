@@ -16,6 +16,8 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
+    // Class names as written, so a test can load a component's real stylesheet and read computed styles.
+    css: { modules: { classNameStrategy: 'non-scoped' } },
     setupFiles: [resolve(rootDir, 'vitest.setup.ts')],
     include: ['**/*.test.{ts,tsx}'],
     exclude: ['node_modules/**', '.next/**'],

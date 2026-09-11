@@ -26,6 +26,8 @@ export const documentClient = DynamoDBDocumentClient.from(
 
 export const planetsTableName = process.env.EXOPLANETS_DATABASE_TABLE || 'exoplanets-dev';
 export const recordsTableName = process.env.EXOPLANETS_RECORDS_TABLE || 'exoplanet-records-dev';
+export const tombstonesTableName =
+  process.env.EXOPLANETS_TOMBSTONES_TABLE || 'exoplanet-tombstones-dev';
 
 // The stored item is only a claim that it has Item's shape; callers own that trust.
 export async function scanAll<Item>(scan: Omit<ScanCommandInput, 'ExclusiveStartKey'>): Promise<Item[]> {

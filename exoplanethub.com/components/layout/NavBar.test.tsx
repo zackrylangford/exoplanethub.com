@@ -1,10 +1,14 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import NavBar from '@/components/layout/NavBar';
 
 function menuButton() {
   return screen.getByRole('button', { name: 'Toggle menu' });
+}
+
+function menu() {
+  return document.getElementById(menuButton().getAttribute('aria-controls') as string) as HTMLElement;
 }
 
 describe('NavBar accessibility (#6)', () => {
@@ -41,11 +45,25 @@ describe('NavBar destinations', () => {
   it.each([
     ['Explore', '/explore'],
     ['Records', '/records'],
+    ['Compare', '/compare'],
     ['About', '/about'],
     ['Contact', '/contact'],
   ])('links %s to %s', (name, href) => {
     render(<NavBar />);
 
     expect(screen.getByRole('link', { name })).toHaveAttribute('href', href);
+  });
+
+  // One list serves pointer, Tab and the mobile menu, so the order is pinned once, tools first.
+  it('lists the tools ahead of the site pages, all inside the collapsible menu', () => {
+    render(<NavBar />);
+
+    expect(within(menu()).getAllByRole('link').map((link) => link.textContent)).toEqual([
+      'Explore',
+      'Records',
+      'Compare',
+      'About',
+      'Contact',
+    ]);
   });
 });
