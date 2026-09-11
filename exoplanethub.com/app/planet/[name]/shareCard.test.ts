@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getESIBand } from '@/components/explore/esiBands';
+import { getESIBand } from '@/lib/esiBands';
 import type { Planet } from '@/lib/mockPlanets';
 import { getTheme, SITE_THEME } from '@/lib/theme';
 import { shareCard } from './shareCard';

@@ -73,10 +73,22 @@ alive, before scrolling.
 - Absolute sync date in the planet pages' voice, dropped rather than mangled when the stamp cannot be read
 - Renders nothing for an empty or unreadable archive rather than announcing zero
 
+### 7. Compare Planets
+Put two confirmed planets side by side at a shareable `/compare` address: every stat the planet
+page shows, each pair's ratio spelled out, and a plain verdict on which is closer to Earth's
+conditions.
+
+**Tasks:**
+- `/compare?a=<name>&b=<name>` route where the URL is the whole state, with Swap and Change, every URL built by one `compareUrl`
+- Side-by-side table from the planet page's own sections and formatters, a ratio note beside the larger value, "Not measured" where the archive has no figure
+- Headline verdict from the one ESI rule, naming the missing input when a planet cannot be scored — closer to Earth's conditions, never "more habitable"
+- Retired planets compare like any other, marked as retired
+- Planet picker over the cached archive list that fills an empty column from the keyboard
+- Compare from the planet page, the quick look, every card and the nav
+
 ## Future Ideas
 
 - 3D visualization of exoplanet systems
-- Comparison tool (side-by-side planet stats)
 - Export data to CSV/JSON
 - User favorites/bookmarks
 - Dark mode toggle

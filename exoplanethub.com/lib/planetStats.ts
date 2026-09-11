@@ -1,13 +1,42 @@
 import type { Planet, PlanetSummary } from '@/lib/mockPlanets';
 import { starBandOf } from '@/lib/starBands';
 
+// Ids rather than labels, because "Radius" and "Mass" name both a planet stat and a star stat.
+type NumericStatKey = keyof Pick<
+  Planet,
+  | 'pl_rade'
+  | 'pl_bmasse'
+  | 'pl_dens'
+  | 'pl_eqt'
+  | 'pl_insol'
+  | 'pl_orbper'
+  | 'pl_orbsmax'
+  | 'st_teff'
+  | 'st_rad'
+  | 'st_mass'
+  | 'st_age'
+  | 'sy_dist'
+  | 'sy_snum'
+  | 'sy_pnum'
+  | 'disc_year'
+>;
+
+type TextStatKey = keyof Pick<Planet, 'hostname' | 'discoverymethod' | 'disc_facility'>;
+
+export type StatKey = NumericStatKey | TextStatKey | 'spectral_class';
+
 export interface PlanetStat {
+  id: StatKey;
   label: string;
   value: string | null;
+  // The stored column in the archive's own unit (parsecs, kelvin), whatever unit `value` displays.
+  measure: number | null;
 }
 
+export type SectionId = 'planet' | 'star' | 'system' | 'discovery';
+
 export interface PlanetStatSection {
-  id: string;
+  id: SectionId;
   title: string;
   stats: PlanetStat[];
 }
@@ -51,6 +80,30 @@ function spectralClass(starTemperature: number | null): string | null {
   return starBandOf(starTemperature)?.label ?? null;
 }
 
+// Reading the column by id is what keeps `measure` and `value` from ever describing different fields.
+function numeric<K extends NumericStatKey>(
+  planet: Pick<Planet, K>,
+  id: K,
+  label: string,
+  format: (value: number | null) => string | null
+): PlanetStat {
+  const value = planet[id];
+  return { id, label, value: format(value), measure: isMeasured(value) ? value : null };
+}
+
+function measured<K extends NumericStatKey>(
+  planet: Pick<Planet, K>,
+  id: K,
+  label: string,
+  unit: string
+): PlanetStat {
+  return numeric(planet, id, label, (value) => measurement(value, unit));
+}
+
+function textual<K extends TextStatKey>(planet: Pick<Planet, K>, id: K, label: string): PlanetStat {
+  return { id, label, value: text(planet[id]), measure: null };
+}
+
 function highlight(value: number | null, phrase: (amount: string) => string): string | null {
   return isMeasured(value) ? phrase(NUMBER.format(value)) : null;
 }
@@ -75,12 +128,12 @@ export function planetHighlights(planet: Planet): string[] {
 // Shares the section formatters so the quick look cannot round a field differently from the page it links to.
 export function planetKeyStats(planet: PlanetSummary): PlanetStat[] {
   return [
-    { label: 'Distance', value: measurement(planet.sy_dist, 'parsecs') },
-    { label: 'Radius', value: measurement(planet.pl_rade, '× Earth') },
-    { label: 'Mass', value: measurement(planet.pl_bmasse, '× Earth') },
-    { label: 'Temperature', value: measurement(planet.pl_eqt, 'K') },
-    { label: 'Discovered', value: exact(planet.disc_year) },
-    { label: 'Detection Method', value: text(planet.discoverymethod) },
+    measured(planet, 'sy_dist', 'Distance', 'parsecs'),
+    measured(planet, 'pl_rade', 'Radius', '× Earth'),
+    measured(planet, 'pl_bmasse', 'Mass', '× Earth'),
+    measured(planet, 'pl_eqt', 'Temperature', 'K'),
+    numeric(planet, 'disc_year', 'Discovered', exact),
+    textual(planet, 'discoverymethod', 'Detection Method'),
   ];
 }
 
@@ -90,43 +143,48 @@ export function planetStatSections(planet: Planet): PlanetStatSection[] {
       id: 'planet',
       title: 'Planet',
       stats: [
-        { label: 'Radius', value: measurement(planet.pl_rade, '× Earth') },
-        { label: 'Mass', value: measurement(planet.pl_bmasse, '× Earth') },
-        { label: 'Density', value: measurement(planet.pl_dens, 'g/cm³') },
-        { label: 'Equilibrium temperature', value: measurement(planet.pl_eqt, 'K') },
-        { label: 'Starlight received', value: measurement(planet.pl_insol, '× Earth') },
-        { label: 'Orbital period', value: measurement(planet.pl_orbper, 'days') },
-        { label: 'Average distance from its star', value: measurement(planet.pl_orbsmax, 'AU') },
+        measured(planet, 'pl_rade', 'Radius', '× Earth'),
+        measured(planet, 'pl_bmasse', 'Mass', '× Earth'),
+        measured(planet, 'pl_dens', 'Density', 'g/cm³'),
+        measured(planet, 'pl_eqt', 'Equilibrium temperature', 'K'),
+        measured(planet, 'pl_insol', 'Starlight received', '× Earth'),
+        measured(planet, 'pl_orbper', 'Orbital period', 'days'),
+        measured(planet, 'pl_orbsmax', 'Average distance from its star', 'AU'),
       ],
     },
     {
       id: 'star',
       title: 'Star',
       stats: [
-        { label: 'Host star', value: text(planet.hostname) },
-        { label: 'Spectral class', value: spectralClass(planet.st_teff) },
-        { label: 'Surface temperature', value: measurement(planet.st_teff, 'K') },
-        { label: 'Radius', value: measurement(planet.st_rad, '× Sun') },
-        { label: 'Mass', value: measurement(planet.st_mass, '× Sun') },
-        { label: 'Age', value: measurement(planet.st_age, 'billion years') },
+        textual(planet, 'hostname', 'Host star'),
+        {
+          id: 'spectral_class',
+          label: 'Spectral class',
+          value: spectralClass(planet.st_teff),
+          measure: null,
+        },
+        measured(planet, 'st_teff', 'Surface temperature', 'K'),
+        measured(planet, 'st_rad', 'Radius', '× Sun'),
+        measured(planet, 'st_mass', 'Mass', '× Sun'),
+        measured(planet, 'st_age', 'Age', 'billion years'),
       ],
     },
     {
       id: 'system',
       title: 'System',
       stats: [
-        { label: 'Distance from Earth', value: distanceFromEarth(planet.sy_dist) },
-        { label: 'Stars in system', value: exact(planet.sy_snum) },
-        { label: 'Known planets', value: exact(planet.sy_pnum) },
+        numeric(planet, 'sy_dist', 'Distance from Earth', distanceFromEarth),
+        numeric(planet, 'sy_snum', 'Stars in system', exact),
+        numeric(planet, 'sy_pnum', 'Known planets', exact),
       ],
     },
     {
       id: 'discovery',
       title: 'Discovery',
       stats: [
-        { label: 'Year', value: exact(planet.disc_year) },
-        { label: 'Method', value: text(planet.discoverymethod) },
-        { label: 'Facility', value: text(planet.disc_facility) },
+        numeric(planet, 'disc_year', 'Year', exact),
+        textual(planet, 'discoverymethod', 'Method'),
+        textual(planet, 'disc_facility', 'Facility'),
       ],
     },
   ];

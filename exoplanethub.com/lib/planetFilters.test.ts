@@ -11,6 +11,7 @@ import {
   isFiltered,
   measuredExtent,
   parseFilters,
+  planetMatcher,
   serializeFilters,
   sortPlanets,
   withMethod,
@@ -316,6 +317,39 @@ describe('applyFilters', () => {
 
   it('requires a planet to satisfy every active filter', () => {
     expect(names({ q: 'beta', methods: ['Transit'] })).toEqual([]);
+  });
+});
+
+describe('planetMatcher', () => {
+  const planets = [ALPHA, BETA, GAMMA];
+
+  function matching(query: string) {
+    return planets.filter(planetMatcher(query)).map((planet) => planet.pl_name);
+  }
+
+  // The factory owns normalisation, so raw text-box input matches without the caller preparing it.
+  it('matches raw input case insensitively, ignoring surrounding whitespace', () => {
+    expect(matching('  BETA  ')).toEqual(['Beta c']);
+  });
+
+  it('matches the host star as well as the planet', () => {
+    expect(matching('Ross')).toEqual(['Alpha b']);
+  });
+
+  it('matches on a substring, not just a prefix', () => {
+    expect(matching('186')).toEqual(['Beta c']);
+  });
+
+  it('does not trip over a planet whose host star is unknown', () => {
+    expect(matching('gamma')).toEqual(['Gamma d']);
+  });
+
+  it('matches every planet for a blank query, leaving the caller to decide whether that is a filter', () => {
+    expect(matching('   ')).toEqual(['Alpha b', 'Beta c', 'Gamma d']);
+  });
+
+  it('matches nothing for a name the list lacks, rather than falling back to everything', () => {
+    expect(matching('Vulcan')).toEqual([]);
   });
 });
 

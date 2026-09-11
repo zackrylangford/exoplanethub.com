@@ -172,11 +172,15 @@ export function withStarClass(
   return { ...state, starClasses: toggled(state.starClasses, starClass, selected) };
 }
 
-function matchesText(planet: PlanetSummary, needle: string): boolean {
-  return (
+type PlanetPredicate = (planet: PlanetSummary) => boolean;
+
+// Normalises the query itself, so a caller can hand over raw input; a blank query matches every planet.
+export function planetMatcher(query: string): PlanetPredicate {
+  const needle = query.trim().toLowerCase();
+
+  return (planet) =>
     planet.pl_name.toLowerCase().includes(needle) ||
-    (planet.hostname?.toLowerCase().includes(needle) ?? false)
-  );
+    (planet.hostname?.toLowerCase().includes(needle) ?? false);
 }
 
 // An unmeasured quantity can satisfy no bound, so those planets drop out — but only while the
@@ -189,13 +193,10 @@ function matchesRange(value: number | null, range: Range): boolean {
   );
 }
 
-type PlanetPredicate = (planet: PlanetSummary) => boolean;
-
 function activePredicates(state: FilterState): PlanetPredicate[] {
   const predicates: PlanetPredicate[] = [];
-  const needle = state.q.trim().toLowerCase();
 
-  if (needle) predicates.push((planet) => matchesText(planet, needle));
+  if (/\S/.test(state.q)) predicates.push(planetMatcher(state.q));
 
   if (state.methods.length > 0) {
     const chosen = new Set(state.methods);
