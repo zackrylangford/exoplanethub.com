@@ -1,10 +1,11 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import ESIBadge from '@/components/explore/ESIBadge';
 import { earthComparisons, type EarthComparison } from '@/lib/earthComparison';
 import { findPlanet, type FoundPlanet } from '@/lib/planetDetail';
 import { planetMetadata, retiredPlanetMetadata } from '@/lib/planetMetadata';
-import { planetNameFromParam } from '@/lib/planetUrl';
+import { compareUrl, planetNameFromParam } from '@/lib/planetUrl';
 import { planetStatSections, type PlanetStatSection } from '@/lib/planetStats';
 import { formatSyncDate } from '@/lib/syncDate';
 import PageSection from './PageSection';
@@ -49,6 +50,12 @@ export default async function PlanetPage({ params }: PlanetPageProps) {
           <h1 className={styles.title}>{planet.pl_name}</h1>
           <p className={styles.summary}>{summarize(found)}</p>
           <ESIBadge score={planet.esi} variant="page" />
+          <Link
+            className={`${styles.action} ${styles.actionQuiet} ${styles.compare}`}
+            href={compareUrl(planet.pl_name, null)}
+          >
+            Compare with another planet
+          </Link>
         </header>
 
         <div className={styles.sections}>

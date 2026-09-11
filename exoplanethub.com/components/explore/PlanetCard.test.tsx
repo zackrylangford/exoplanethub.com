@@ -49,11 +49,13 @@ describe('PlanetCard', () => {
   });
 
   // Decision 5 keeps the two-control pattern in the table; the card's button still only opens the modal.
-  it('keeps Learn More as the modal control rather than a second link', () => {
-    const onClick = vi.fn();
-    render(<PlanetCard planet={SCORED} onClick={onClick} />);
+  it('keeps Learn More as the modal control, with the profile and the comparison as its only links', () => {
+    renderCard(SCORED);
 
-    expect(screen.getAllByRole('link')).toHaveLength(1);
+    expect(screen.getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual([
+      '/planet/Kepler-442%20b',
+      '/compare?a=Kepler-442%20b',
+    ]);
     expect(screen.getByRole('button', { name: 'Learn More' })).toBeInTheDocument();
   });
 
@@ -76,5 +78,24 @@ describe('PlanetCard', () => {
     renderCard(SCORED);
 
     expect(screen.getByText('🪐')).toHaveAttribute('aria-hidden', 'true');
+  });
+});
+
+describe('PlanetCard compare link (#121)', () => {
+  it('starts a comparison with this planet already in the first column', () => {
+    renderCard(SCORED);
+
+    expect(screen.getByRole('link', { name: 'Compare Kepler-442 b' })).toHaveAttribute(
+      'href',
+      '/compare?a=Kepler-442%20b',
+    );
+  });
+
+  // A grid of bare "Compare" links is one name repeated; the visible word stays a prefix of the spoken name.
+  it('names the planet for assistive tech while showing the one word', () => {
+    renderCard(SCORED);
+
+    const compare = screen.getByRole('link', { name: 'Compare Kepler-442 b' });
+    expect(compare).toHaveTextContent(/^Compare$/);
   });
 });
