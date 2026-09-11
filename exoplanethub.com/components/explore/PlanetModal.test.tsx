@@ -151,11 +151,12 @@ describe('PlanetModal full profile link (#68)', () => {
     expect(within(dialog).getByRole('link', { name: 'View full profile' }).tagName).toBe('A');
   });
 
-  // The dialog had one focus stop before this link; the trap has to keep cycling both.
-  it('is reachable by Tab inside the focus trap', async () => {
+  // The dialog had one focus stop before these links; the trap has to keep cycling all of them.
+  it('is reachable by Tab inside the focus trap, with Compare beside it', async () => {
     const { user, dialog } = await openModal();
     const close = within(dialog).getByRole('button', { name: 'Close' });
     const fullProfile = within(dialog).getByRole('link', { name: 'View full profile' });
+    const compare = within(dialog).getByRole('link', { name: 'Compare' });
 
     await user.tab();
     expect(close).toHaveFocus();
@@ -164,6 +165,29 @@ describe('PlanetModal full profile link (#68)', () => {
     expect(fullProfile).toHaveFocus();
 
     await user.tab();
+    expect(compare).toHaveFocus();
+
+    await user.tab();
     expect(close).toHaveFocus();
+  });
+});
+
+describe('PlanetModal compare link (#121)', () => {
+  it('starts a comparison with this planet already in the first column', async () => {
+    const { dialog } = await openModal();
+
+    expect(within(dialog).getByRole('link', { name: 'Compare' })).toHaveAttribute(
+      'href',
+      '/compare?a=Kepler-186%20f',
+    );
+  });
+
+  it('sits beside the full profile link as a second next step', async () => {
+    const { dialog } = await openModal();
+    const fullProfile = within(dialog).getByRole('link', { name: 'View full profile' });
+    const compare = within(dialog).getByRole('link', { name: 'Compare' });
+
+    expect(compare.parentElement).toBe(fullProfile.parentElement);
+    expect(compare.className).toBe(fullProfile.className);
   });
 });

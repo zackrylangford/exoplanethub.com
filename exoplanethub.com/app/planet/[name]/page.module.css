@@ -158,6 +158,10 @@
   outline-offset: 3px;
 }
 
+.compare {
+  margin-top: 20px;
+}
+
 .visuallyHidden {
   position: absolute;
   width: 1px;

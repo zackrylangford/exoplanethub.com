@@ -69,8 +69,14 @@
   color: var(--color-text);
 }
 
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
 .learnMore {
-  width: 100%;
+  flex: 1;
   background: transparent;
   color: var(--color-primary);
   border: 2px solid var(--color-border);
@@ -86,4 +92,22 @@
   border-color: var(--color-primary);
   background: var(--color-primary);
   color: var(--color-primary-contrast);
+}
+
+.compare {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  white-space: nowrap;
+}
+
+.compare:hover {
+  color: var(--color-accent);
+}
+
+.compare:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }

@@ -142,8 +142,15 @@
   }
 }
 
-.fullProfile {
-  display: block;
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* Two next steps share the row where they fit and stack where they don't. */
+.action {
+  flex: 1 1 200px;
   background: var(--color-primary);
   color: var(--color-primary-contrast);
   border-radius: 999px;
@@ -155,12 +162,12 @@
   transition: background 0.2s;
 }
 
-.fullProfile:hover {
+.action:hover {
   background: var(--color-accent);
   color: var(--color-background);
 }
 
-.fullProfile:focus-visible {
+.action:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }

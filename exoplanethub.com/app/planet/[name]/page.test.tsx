@@ -320,6 +320,30 @@ describe('PlanetPage for a retired planet', () => {
   });
 });
 
+describe('PlanetPage compare link (#121)', () => {
+  it('offers a comparison from the header with this planet already in the first column', async () => {
+    findPlanet.mockResolvedValue(LIVE_KEPLER_452B);
+
+    await renderPage('Kepler-452%20b');
+
+    const compare = screen.getByRole('link', { name: 'Compare with another planet' });
+    expect(compare).toHaveAttribute('href', '/compare?a=Kepler-452%20b');
+    expect(screen.getByRole('heading', { level: 1 }).parentElement).toContainElement(compare);
+  });
+
+  // /compare marks a retired column itself, so the entry point is the same for every planet.
+  it('offers it for a retired planet too', async () => {
+    findPlanet.mockResolvedValue(RETIRED_KEPLER_452B);
+
+    await renderPage('Kepler-452%20b');
+
+    expect(screen.getByRole('link', { name: 'Compare with another planet' })).toHaveAttribute(
+      'href',
+      '/compare?a=Kepler-452%20b'
+    );
+  });
+});
+
 describe('PlanetPage misses', () => {
   it('renders the not-found page when the lookup knows nothing by that name', async () => {
     findPlanet.mockResolvedValue(null);

@@ -1,6 +1,8 @@
 'use client';
+import Link from 'next/link';
 import { PlanetSummary } from '@/lib/mockPlanets';
 import { measurement } from '@/lib/planetStats';
+import { compareUrl } from '@/lib/planetUrl';
 import PlanetNameLink from '@/components/planet/PlanetNameLink';
 import ESIBadge from './ESIBadge';
 import styles from './PlanetCard.module.css';
@@ -39,7 +41,17 @@ export default function PlanetCard({ planet, onClick }: PlanetCardProps) {
           </div>
         </div>
         
-        <button className={styles.learnMore} onClick={onClick}>Learn More</button>
+        <div className={styles.actions}>
+          <button className={styles.learnMore} onClick={onClick}>Learn More</button>
+          {/* The grid renders many of these, so each carries its planet in its accessible name. */}
+          <Link
+            className={styles.compare}
+            href={compareUrl(planet.pl_name, null)}
+            aria-label={`Compare ${planet.pl_name}`}
+          >
+            Compare
+          </Link>
+        </div>
       </div>
     </div>
   );
