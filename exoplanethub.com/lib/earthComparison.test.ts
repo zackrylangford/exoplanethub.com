@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { earthComparisons } from '@/lib/earthComparison';
+import { amount, earthComparisons, isComparable } from '@/lib/earthComparison';
 import type { Planet } from '@/lib/mockPlanets';
 
 const UNMEASURED: Planet = {
@@ -166,5 +166,42 @@ describe('year length', () => {
     [365.25, 'A year here lasts about 1 Earth year.'],
   ])('says "%s day" in the singular where the count is one', (pl_orbper, detail) => {
     expect(detailOf('Year', { pl_orbper })).toBe(detail);
+  });
+});
+
+describe('amount', () => {
+  it.each([
+    [1.63, '1.6'],
+    [0.85, '0.85'],
+    [0.0004, '0.0004'],
+    [9.96, '10'],
+  ])('keeps two significant digits below ten, so %s reads %s', (value, expected) => {
+    expect(amount(value)).toBe(expected);
+  });
+
+  // Two significant digits would turn a 267-day orbit into 270, a number the archive never held.
+  it.each([
+    [11.2, '11'],
+    [267.29, '267'],
+    [3247, '3,247'],
+  ])('keeps whole numbers from ten up, so %s reads %s', (value, expected) => {
+    expect(amount(value)).toBe(expected);
+  });
+});
+
+describe('isComparable', () => {
+  it.each([1, 0.0004, 5757])('accepts the positive finite value %s', (value) => {
+    expect(isComparable(value)).toBe(true);
+  });
+
+  it.each([
+    ['zero', 0],
+    ['a negative', -1],
+    ['NaN', Number.NaN],
+    ['Infinity', Number.POSITIVE_INFINITY],
+    ['null', null],
+    ['undefined', undefined],
+  ])('rejects %s, which no ratio, kelvin or period can be', (_case, value) => {
+    expect(isComparable(value)).toBe(false);
   });
 });

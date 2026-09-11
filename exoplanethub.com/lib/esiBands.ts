@@ -38,3 +38,8 @@ export const ESI_BANDS: readonly ESIBand[] = BAND_DEFINITIONS.map((band, index) 
 export function getESIBand(score: number): ESIBand {
   return ESI_BANDS.find((band) => score >= band.minScore) ?? ESI_BANDS[ESI_BANDS.length - 1];
 }
+
+// The one text form of a score, for wherever a badge cannot render.
+export function esiScoreText(score: number): string {
+  return `ESI ${score} · ${getESIBand(score).label}`;
+}

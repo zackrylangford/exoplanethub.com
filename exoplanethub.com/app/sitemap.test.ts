@@ -29,6 +29,7 @@ vi.mock('next/cache', () => ({ unstable_cache: unstableCache }));
 const STATIC_URLS = [
   'https://www.exoplanethub.com/',
   'https://www.exoplanethub.com/explore',
+  'https://www.exoplanethub.com/compare',
   'https://www.exoplanethub.com/records',
   'https://www.exoplanethub.com/about',
   'https://www.exoplanethub.com/contact',

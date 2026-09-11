@@ -1,6 +1,6 @@
 'use client';
 import ModalDialog from '@/components/ui/ModalDialog';
-import { ESI_BANDS } from './esiBands';
+import { ESI_BANDS } from '@/lib/esiBands';
 import styles from './ESIModal.module.css';
 
 interface ESIModalProps {

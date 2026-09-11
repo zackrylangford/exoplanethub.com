@@ -1,14 +1,13 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import ESIBadge from '@/components/explore/ESIBadge';
 import { earthComparisons, type EarthComparison } from '@/lib/earthComparison';
-import type { Planet } from '@/lib/mockPlanets';
-import { getPlanetDetail } from '@/lib/planetDetail';
+import { findPlanet, type FoundPlanet } from '@/lib/planetDetail';
 import { planetMetadata, retiredPlanetMetadata } from '@/lib/planetMetadata';
-import { planetNameFromParam } from '@/lib/planetUrl';
+import { compareUrl, planetNameFromParam } from '@/lib/planetUrl';
 import { planetStatSections, type PlanetStatSection } from '@/lib/planetStats';
 import { formatSyncDate } from '@/lib/syncDate';
-import { getRetiredPlanet, type RetiredPlanet } from '@/lib/tombstone';
 import PageSection from './PageSection';
 import RetiredNotice from './RetiredNotice';
 import styles from './page.module.css';
@@ -21,17 +20,10 @@ interface PlanetPageProps {
   params: Promise<{ name: string }>;
 }
 
-// A live planet is one the archive still lists; a retired one is the snapshot the sweep kept.
-type FoundPlanet = { planet: Planet; removedAt: null } | RetiredPlanet;
-
 // A malformed segment and an unstocked name are the same answer, so callers get one null.
-// Tombstones are read only after a live miss, so a listed planet costs the one GetItem it always did.
 async function loadPlanet(params: PlanetPageProps['params']): Promise<FoundPlanet | null> {
   const planetName = planetNameFromParam((await params).name);
-  if (planetName === null) return null;
-
-  const planet = await getPlanetDetail(planetName);
-  return planet === null ? getRetiredPlanet(planetName) : { planet, removedAt: null };
+  return planetName === null ? null : findPlanet(planetName);
 }
 
 // Both lookups are cache()d, so titling the page and rendering it share the same reads.
@@ -58,6 +50,12 @@ export default async function PlanetPage({ params }: PlanetPageProps) {
           <h1 className={styles.title}>{planet.pl_name}</h1>
           <p className={styles.summary}>{summarize(found)}</p>
           <ESIBadge score={planet.esi} variant="page" />
+          <Link
+            className={`${styles.action} ${styles.actionQuiet} ${styles.compare}`}
+            href={compareUrl(planet.pl_name, null)}
+          >
+            Compare with another planet
+          </Link>
         </header>
 
         <div className={styles.sections}>
